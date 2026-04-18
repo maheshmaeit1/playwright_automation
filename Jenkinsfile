@@ -99,7 +99,7 @@ pipeline {
 
                     def exitCode = bat(
                         returnStatus: true,
-                        script: "set PLAYWRIGHT_HTML_OUTPUT_DIR=reports/initial && set PLAYWRIGHT_JSON_OUTPUT_NAME=${env.PLAYWRIGHT_JSON_REPORT} && npx playwright test"
+                        script: "set PLAYWRIGHT_JSON_OUTPUT_NAME=${env.PLAYWRIGHT_JSON_REPORT} && npx playwright test"
                     )
 
                     env.INITIAL_EXIT_CODE = exitCode.toString()
@@ -113,6 +113,8 @@ pipeline {
             }
             post {
                 always {
+                    bat 'if exist reports\\initial rmdir /S /Q reports\\initial'
+                    bat 'if exist playwright-report xcopy /E /I /Q playwright-report reports\\initial'
                     publishHTML(target: [
                         allowMissing:          true,
                         alwaysLinkToLastBuild: true,
@@ -188,7 +190,7 @@ pipeline {
 
                     def exitCode = bat(
                         returnStatus: true,
-                        script: "set PLAYWRIGHT_HTML_OUTPUT_DIR=reports/rerun && set PLAYWRIGHT_JSON_OUTPUT_NAME=test-results/rerun-results.json && npx playwright test"
+                        script: "set PLAYWRIGHT_JSON_OUTPUT_NAME=test-results/rerun-results.json && npx playwright test"
                     )
 
                     env.RERUN_EXIT_CODE = exitCode.toString()
@@ -202,6 +204,8 @@ pipeline {
             }
             post {
                 always {
+                    bat 'if exist reports\\rerun rmdir /S /Q reports\\rerun'
+                    bat 'if exist playwright-report xcopy /E /I /Q playwright-report reports\\rerun'
                     publishHTML(target: [
                         allowMissing:          true,
                         alwaysLinkToLastBuild: true,
