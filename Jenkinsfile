@@ -113,15 +113,20 @@ pipeline {
             }
             post {
                 always {
-                    bat 'if exist reports\\initial rmdir /S /Q reports\\initial'
-                    bat 'if exist playwright-report xcopy /E /I /Q playwright-report reports\\initial'
+                    powershell '''
+                        if (Test-Path 'reports/initial') { Remove-Item 'reports/initial' -Recurse -Force }
+                        New-Item -ItemType Directory -Path 'reports/initial' -Force | Out-Null
+                        if (Test-Path 'playwright-report') {
+                            Copy-Item 'playwright-report/*' 'reports/initial' -Recurse -Force
+                        }
+                    '''
                     publishHTML(target: [
                         allowMissing:          true,
                         alwaysLinkToLastBuild: true,
                         keepAll:               true,
                         reportDir:             'reports/initial',
                         reportFiles:           'index.html',
-                        reportName:            'Playwright Report - Initial Run'
+                        reportName:            'Original Execution - Playwright Report'
                     ])
                 }
             }
@@ -158,8 +163,16 @@ pipeline {
             }
             post {
                 always {
-                    bat 'if not exist reports\\heal mkdir reports\\heal'
-                    bat 'if exist test-results\\healing_report.html copy /Y test-results\\healing_report.html reports\\heal\\index.html'
+                    powershell '''
+                        New-Item -ItemType Directory -Path 'reports/heal' -Force | Out-Null
+                        if (Test-Path 'test-results/healing_report.html') {
+                            Copy-Item 'test-results/healing_report.html' 'reports/heal/index.html' -Force
+                        } else {
+                            @"
+<html><body><h1>Test Heal Report</h1><p>No healing HTML report was generated for this run.</p></body></html>
+"@ | Set-Content 'reports/heal/index.html'
+                        }
+                    '''
                     archiveArtifacts artifacts: "${env.HEALING_REPORT},${env.HEALER_LOG}", allowEmptyArchive: true
                     publishHTML(target: [
                         allowMissing:          true,
@@ -167,7 +180,7 @@ pipeline {
                         keepAll:               true,
                         reportDir:             'reports/heal',
                         reportFiles:           'index.html',
-                        reportName:            'Healing Report'
+                        reportName:            'Test Heal Report'
                     ])
                 }
             }
@@ -204,15 +217,20 @@ pipeline {
             }
             post {
                 always {
-                    bat 'if exist reports\\rerun rmdir /S /Q reports\\rerun'
-                    bat 'if exist playwright-report xcopy /E /I /Q playwright-report reports\\rerun'
+                    powershell '''
+                        if (Test-Path 'reports/rerun') { Remove-Item 'reports/rerun' -Recurse -Force }
+                        New-Item -ItemType Directory -Path 'reports/rerun' -Force | Out-Null
+                        if (Test-Path 'playwright-report') {
+                            Copy-Item 'playwright-report/*' 'reports/rerun' -Recurse -Force
+                        }
+                    '''
                     publishHTML(target: [
                         allowMissing:          true,
                         alwaysLinkToLastBuild: true,
                         keepAll:               true,
                         reportDir:             'reports/rerun',
                         reportFiles:           'index.html',
-                        reportName:            'Playwright Report - After Healing'
+                        reportName:            'Re-execution - Playwright Report'
                     ])
                 }
             }
@@ -247,17 +265,20 @@ pipeline {
     // ── Post-pipeline ─────────────────────────────────────────────────────────
     post {
         always {
-            archiveArtifacts artifacts: 'test-results/**, playwright-report/**', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'test-results/**, playwright-report/**, reports/**', allowEmptyArchive: true
 
             script {
                 if (fileExists(env.HEALING_REPORT)) {
-                    def hr = readJSON file: env.HEALING_REPORT
-                    currentBuild.description = [
-                        "Failures: ${hr.total_failures}",
-                        "Healed: ${hr.healed}",
-                        "Unhealed: ${hr.failed_to_heal}",
-                        params.DRY_RUN ? '[DRY-RUN]' : ''
-                    ].findAll { it }.join(' | ')
+                    def healingReportText = readFile(file: env.HEALING_REPORT).trim()
+                    if (healingReportText) {
+                        def hr = new groovy.json.JsonSlurperClassic().parseText(healingReportText)
+                        currentBuild.description = [
+                            "Failures: ${hr.total_failures}",
+                            "Healed: ${hr.healed}",
+                            "Unhealed: ${hr.failed_to_heal}",
+                            params.DRY_RUN ? '[DRY-RUN]' : ''
+                        ].findAll { it }.join(' | ')
+                    }
                 }
 
                 if (env.RERUN_EXIT_CODE && env.RERUN_EXIT_CODE != '0') {
