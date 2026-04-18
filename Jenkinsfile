@@ -99,7 +99,7 @@ pipeline {
 
                     def exitCode = bat(
                         returnStatus: true,
-                        script: "npx playwright test --reporter=html,json --output=${env.PLAYWRIGHT_JSON_REPORT} ${grepFlag}"
+                        script: "set PLAYWRIGHT_JSON_OUTPUT_NAME=${env.PLAYWRIGHT_JSON_REPORT} && npx playwright test"
                     )
 
                     env.INITIAL_EXIT_CODE = exitCode.toString()
@@ -172,7 +172,7 @@ pipeline {
 
                     def exitCode = bat(
                         returnStatus: true,
-                        script: "npx playwright test --reporter=html,json --output=test-results/rerun-results.json ${grepFlag}"
+                        script: "set PLAYWRIGHT_JSON_OUTPUT_NAME=test-results/rerun-results.json && npx playwright test"
                     )
 
                     env.RERUN_EXIT_CODE = exitCode.toString()

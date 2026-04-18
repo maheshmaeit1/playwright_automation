@@ -15,6 +15,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   timeout: 30_000,
+  outputDir: 'test-results/artifacts',
   expect: {
     timeout: 10_000,
     toHaveScreenshot: {
@@ -24,9 +25,8 @@ export default defineConfig({
   },
   reporter: [
     ['list'],
-    ['html', { open: 'never' }],
-    // JSON report consumed by the healer agent in CI
-    ...(process.env.CI ? [['json', { outputFile: 'test-results/results.json' }] as const] : [])
+    ['html', { open: 'never', outputFolder: 'playwright-report' }],
+    ['json', { outputFile: 'test-results/results.json' }]
   ],
   use: {
     headless: true,
