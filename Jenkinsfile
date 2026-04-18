@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Playwright Test Pipeline with AI Healer
+// Playwright Test Pipeline with AI Healer  (Windows Jenkins)
 //
 // Stages:
 //   1. Checkout
@@ -73,15 +73,15 @@ pipeline {
             parallel {
                 stage('Node / Playwright') {
                     steps {
-                        sh 'node --version && npm --version'
-                        sh 'npm ci'
-                        sh 'npx playwright install --with-deps chromium'
+                        bat 'node --version && npm --version'
+                        bat 'npm ci'
+                        bat 'npx playwright install chromium'
                     }
                 }
                 stage('Python') {
                     steps {
-                        sh 'python3 --version && pip3 --version'
-                        sh 'pip3 install --quiet -r healer/requirements.txt'
+                        bat 'python --version && pip --version'
+                        bat 'pip install --quiet -r healer/requirements.txt'
                     }
                 }
             }
@@ -91,23 +91,15 @@ pipeline {
         stage('Test') {
             steps {
                 script {
-                    // Ensure the output directory exists
-                    sh 'mkdir -p test-results'
+                    bat 'if not exist test-results mkdir test-results'
 
                     def grepFlag = params.TEST_GREP
                         ? "--grep \"${params.TEST_GREP}\""
                         : ''
 
-                    // Run with both HTML (for humans) and JSON (for healer)
-                    // returnStatus=true so Jenkins doesn't abort on test failure
-                    def exitCode = sh(
+                    def exitCode = bat(
                         returnStatus: true,
-                        script: """
-                            npx playwright test \
-                                --reporter=html,json \
-                                --output=${env.PLAYWRIGHT_JSON_REPORT} \
-                                ${grepFlag}
-                        """
+                        script: "npx playwright test --reporter=html,json --output=${env.PLAYWRIGHT_JSON_REPORT} ${grepFlag}"
                     )
 
                     env.INITIAL_EXIT_CODE = exitCode.toString()
@@ -121,7 +113,6 @@ pipeline {
             }
             post {
                 always {
-                    // Publish HTML report regardless of outcome
                     publishHTML(target: [
                         allowMissing:         true,
                         alwaysLinkToLastBuild: true,
@@ -138,10 +129,8 @@ pipeline {
         stage('Heal') {
             when {
                 allOf {
-                    // Only run when there are failures
                     expression { env.INITIAL_EXIT_CODE != '0' }
                     expression { !params.SKIP_HEALING }
-                    // JSON report must exist
                     expression { fileExists(env.PLAYWRIGHT_JSON_REPORT) }
                 }
             }
@@ -149,18 +138,11 @@ pipeline {
                 script {
                     def dryRun = params.DRY_RUN ? '--dry-run' : ''
 
-                    def healExitCode = sh(
+                    def healExitCode = bat(
                         returnStatus: true,
-                        script: """
-                            python3 ${env.HEALER_SCRIPT} \
-                                --report  ${env.PLAYWRIGHT_JSON_REPORT} \
-                                --workspace . \
-                                --output  ${env.HEALING_REPORT} \
-                                ${dryRun}
-                        """
+                        script: "python ${env.HEALER_SCRIPT} --report ${env.PLAYWRIGHT_JSON_REPORT} --workspace . --output ${env.HEALING_REPORT} ${dryRun}"
                     )
 
-                    // 0 = all healed, 1 = some unhealed, 2 = startup error
                     env.HEAL_EXIT_CODE = healExitCode.toString()
 
                     if (healExitCode == 0) {
@@ -186,7 +168,6 @@ pipeline {
                     expression { env.INITIAL_EXIT_CODE != '0' }
                     expression { !params.SKIP_HEALING }
                     expression { !params.DRY_RUN }
-                    // Only re-run when at least one fix was applied (exit 0)
                     expression { env.HEAL_EXIT_CODE == '0' }
                 }
             }
@@ -196,14 +177,9 @@ pipeline {
                         ? "--grep \"${params.TEST_GREP}\""
                         : ''
 
-                    def exitCode = sh(
+                    def exitCode = bat(
                         returnStatus: true,
-                        script: """
-                            npx playwright test \
-                                --reporter=html,json \
-                                --output=test-results/rerun-results.json \
-                                ${grepFlag}
-                        """
+                        script: "npx playwright test --reporter=html,json --output=test-results/rerun-results.json ${grepFlag}"
                     )
 
                     env.RERUN_EXIT_CODE = exitCode.toString()
@@ -211,7 +187,6 @@ pipeline {
                     if (exitCode == 0) {
                         echo 'Re-run passed — healer successfully fixed all tests!'
                     } else {
-                        // Do not error here; let post-pipeline logic decide
                         echo "Re-run still has failures (exit ${exitCode}). Manual review required."
                     }
                 }
@@ -240,19 +215,16 @@ pipeline {
             }
             steps {
                 script {
-                    sh '''
+                    bat """
                         git config user.email "healer-bot@ci.local"
-                        git config user.name  "Healer Bot"
+                        git config user.name "Healer Bot"
                         git add --all
-                        git diff --cached --quiet \
-                            && echo "Nothing to commit — tests were already correct." \
-                            || git commit -m "fix: auto-heal failing Playwright tests [skip ci]"
-                    '''
+                        git diff --cached --quiet && echo "Nothing to commit." || git commit -m "fix: auto-heal failing Playwright tests [skip ci]"
+                    """
 
-                    // Push only if a remote is configured
-                    def hasPush = sh(returnStatus: true, script: 'git remote | grep -q origin')
+                    def hasPush = bat(returnStatus: true, script: 'git remote | findstr origin')
                     if (hasPush == 0) {
-                        sh 'git push origin HEAD'
+                        bat 'git push origin HEAD'
                     } else {
                         echo 'No remote "origin" found — skipping push.'
                     }
@@ -268,7 +240,6 @@ pipeline {
             archiveArtifacts artifacts: 'test-results/**', allowEmptyArchive: true
 
             script {
-                // Annotate build description with healing outcome
                 if (fileExists(env.HEALING_REPORT)) {
                     def hr = readJSON file: env.HEALING_REPORT
                     currentBuild.description = [
@@ -279,13 +250,11 @@ pipeline {
                     ].findAll { it }.join(' | ')
                 }
 
-                // Fail the build if re-run still has failures
                 if (env.RERUN_EXIT_CODE && env.RERUN_EXIT_CODE != '0') {
                     currentBuild.result = 'FAILURE'
                     error 'Tests still failing after healing — manual fix required.'
                 }
 
-                // Fail if initial tests failed and healing was skipped
                 if (env.INITIAL_EXIT_CODE != '0' && params.SKIP_HEALING) {
                     currentBuild.result = 'FAILURE'
                     error 'Tests failed and SKIP_HEALING=true — no healing attempted.'
