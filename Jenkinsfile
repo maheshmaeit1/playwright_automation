@@ -99,7 +99,7 @@ pipeline {
 
                     def exitCode = bat(
                         returnStatus: true,
-                        script: "set PLAYWRIGHT_JSON_OUTPUT_NAME=${env.PLAYWRIGHT_JSON_REPORT} && npx playwright test"
+                        script: "set PLAYWRIGHT_HTML_OUTPUT_DIR=reports/initial && set PLAYWRIGHT_JSON_OUTPUT_NAME=${env.PLAYWRIGHT_JSON_REPORT} && npx playwright test"
                     )
 
                     env.INITIAL_EXIT_CODE = exitCode.toString()
@@ -113,7 +113,14 @@ pipeline {
             }
             post {
                 always {
-                    archiveArtifacts artifacts: 'playwright-report/**', allowEmptyArchive: true
+                    publishHTML(target: [
+                        allowMissing:          true,
+                        alwaysLinkToLastBuild: true,
+                        keepAll:               true,
+                        reportDir:             'reports/initial',
+                        reportFiles:           'index.html',
+                        reportName:            'Playwright Report - Initial Run'
+                    ])
                 }
             }
         }
@@ -149,7 +156,17 @@ pipeline {
             }
             post {
                 always {
+                    bat 'if not exist reports\\heal mkdir reports\\heal'
+                    bat 'if exist test-results\\healing_report.html copy /Y test-results\\healing_report.html reports\\heal\\index.html'
                     archiveArtifacts artifacts: "${env.HEALING_REPORT},${env.HEALER_LOG}", allowEmptyArchive: true
+                    publishHTML(target: [
+                        allowMissing:          true,
+                        alwaysLinkToLastBuild: true,
+                        keepAll:               true,
+                        reportDir:             'reports/heal',
+                        reportFiles:           'index.html',
+                        reportName:            'Healing Report'
+                    ])
                 }
             }
         }
@@ -171,7 +188,7 @@ pipeline {
 
                     def exitCode = bat(
                         returnStatus: true,
-                        script: "set PLAYWRIGHT_JSON_OUTPUT_NAME=test-results/rerun-results.json && npx playwright test"
+                        script: "set PLAYWRIGHT_HTML_OUTPUT_DIR=reports/rerun && set PLAYWRIGHT_JSON_OUTPUT_NAME=test-results/rerun-results.json && npx playwright test"
                     )
 
                     env.RERUN_EXIT_CODE = exitCode.toString()
@@ -185,7 +202,14 @@ pipeline {
             }
             post {
                 always {
-                    archiveArtifacts artifacts: 'playwright-report/after-fix/**', allowEmptyArchive: true
+                    publishHTML(target: [
+                        allowMissing:          true,
+                        alwaysLinkToLastBuild: true,
+                        keepAll:               true,
+                        reportDir:             'reports/rerun',
+                        reportFiles:           'index.html',
+                        reportName:            'Playwright Report - After Healing'
+                    ])
                 }
             }
         }
@@ -193,10 +217,7 @@ pipeline {
         // ── 6. Commit healed files ───────────────────────────────────────────
         stage('Commit fixes') {
             when {
-                allOf {
-                    expression { env.RERUN_EXIT_CODE == '0' }
-                    expression { !params.DRY_RUN }
-                }
+                expression { false } // disabled
             }
             steps {
                 script {

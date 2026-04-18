@@ -385,7 +385,60 @@ class PlaywrightTestHealer:
                 print(f"    Fix        : {r.fix_description}")
         print(f"\n{sep}\n")
 
+        self._write_html_summary(report, output_path)
         return report
+
+    def _write_html_summary(self, report: HealingReport, json_path: str) -> None:
+        html_path = Path(json_path).with_suffix(".html")
+        rows = ""
+        for r in report.results:
+            status_color = "#2ecc71" if r["healed"] else "#e74c3c"
+            status_text = "HEALED" if r["healed"] else "UNHEALED"
+            rows += f"""
+            <tr>
+                <td style="color:{status_color};font-weight:bold">{status_text}</td>
+                <td>{r["test_title"]}</td>
+                <td><code>{r["file_path"]}</code></td>
+                <td>{r["root_cause"]}</td>
+                <td>{r.get("fix_description","")}</td>
+                <td>{r.get("confidence","")}</td>
+            </tr>"""
+
+        html = f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Healing Report</title>
+  <style>
+    body {{ font-family: Arial, sans-serif; margin: 24px; background: #f9f9f9; }}
+    h1 {{ color: #333; }}
+    .summary {{ display:flex; gap:32px; margin-bottom:24px; }}
+    .card {{ background:#fff; border-radius:8px; padding:16px 24px; box-shadow:0 1px 4px rgba(0,0,0,.1); text-align:center; }}
+    .card .num {{ font-size:2em; font-weight:bold; }}
+    .total {{ color:#3498db; }} .healed {{ color:#2ecc71; }} .unhealed {{ color:#e74c3c; }}
+    table {{ border-collapse:collapse; width:100%; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.1); border-radius:8px; overflow:hidden; }}
+    th {{ background:#3498db; color:#fff; padding:10px 14px; text-align:left; }}
+    td {{ padding:10px 14px; border-bottom:1px solid #eee; vertical-align:top; }}
+    tr:last-child td {{ border-bottom:none; }}
+    code {{ background:#eee; padding:2px 4px; border-radius:3px; font-size:.9em; }}
+  </style>
+</head>
+<body>
+  <h1>AI Healer Report</h1>
+  <p>Generated: {report.timestamp} | Dry-run: {report.dry_run}</p>
+  <div class="summary">
+    <div class="card"><div class="num total">{report.total_failures}</div>Total Failures</div>
+    <div class="card"><div class="num healed">{report.healed}</div>Healed</div>
+    <div class="card"><div class="num unhealed">{report.failed_to_heal}</div>Unhealed</div>
+  </div>
+  <table>
+    <tr><th>Status</th><th>Test</th><th>File</th><th>Root Cause</th><th>Fix Applied</th><th>Confidence</th></tr>
+    {rows}
+  </table>
+</body>
+</html>"""
+        html_path.write_text(html, encoding="utf-8")
+        logger.info("HTML report written to %s", html_path)
 
 
 # ──────────────────────────────────────────────

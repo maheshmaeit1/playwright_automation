@@ -20,7 +20,7 @@ Current automation scope validates product search behavior.
 - Reporter: `html`
 - Trace: `on-first-retry`
 - CI behavior:
-  - retries: `2`
+  - retries: `0`
   - workers: `1`
 
 ## Current Framework Structure (POM)
