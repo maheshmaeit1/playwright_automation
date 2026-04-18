@@ -173,7 +173,8 @@ pipeline {
 "@ | Set-Content 'reports/heal/index.html'
                         }
                     '''
-                    archiveArtifacts artifacts: "${env.HEALING_REPORT},${env.HEALER_LOG}", allowEmptyArchive: true
+                    archiveArtifacts artifacts: "${env.HEALING_REPORT}", allowEmptyArchive: true
+                    archiveArtifacts artifacts: "${env.HEALER_LOG}", allowEmptyArchive: true
                     publishHTML(target: [
                         allowMissing:          true,
                         alwaysLinkToLastBuild: true,
@@ -265,7 +266,9 @@ pipeline {
     // ── Post-pipeline ─────────────────────────────────────────────────────────
     post {
         always {
-            archiveArtifacts artifacts: 'test-results/**, playwright-report/**, reports/**', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'test-results/**/*', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'playwright-report/**/*', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'reports/**/*', allowEmptyArchive: true
 
             script {
                 if (fileExists(env.HEALING_REPORT)) {
