@@ -75,13 +75,13 @@ pipeline {
                     steps {
                         bat 'node --version && npm --version'
                         bat 'npm ci'
-                        bat 'npx playwright install chromium'
+                        //bat 'npx playwright install chromium'
                     }
                 }
                 stage('Python') {
                     steps {
-                        bat 'python --version && pip --version'
-                        bat 'pip install --quiet -r healer/requirements.txt'
+                        bat 'py --version && py -m pip --version'
+                        bat 'py -m pip install --quiet -r healer/requirements.txt'
                     }
                 }
             }
@@ -140,7 +140,7 @@ pipeline {
 
                     def healExitCode = bat(
                         returnStatus: true,
-                        script: "python ${env.HEALER_SCRIPT} --report ${env.PLAYWRIGHT_JSON_REPORT} --workspace . --output ${env.HEALING_REPORT} ${dryRun}"
+                        script: "py ${env.HEALER_SCRIPT} --report ${env.PLAYWRIGHT_JSON_REPORT} --workspace . --output ${env.HEALING_REPORT} ${dryRun}"
                     )
 
                     env.HEAL_EXIT_CODE = healExitCode.toString()
