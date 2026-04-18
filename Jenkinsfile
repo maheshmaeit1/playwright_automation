@@ -161,7 +161,6 @@ pipeline {
                     expression { env.INITIAL_EXIT_CODE != '0' }
                     expression { !params.SKIP_HEALING }
                     expression { !params.DRY_RUN }
-                    expression { env.HEAL_EXIT_CODE == '0' }
                 }
             }
             steps {
@@ -186,7 +185,7 @@ pipeline {
             }
             post {
                 always {
-                    archiveArtifacts artifacts: 'playwright-report/**', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'playwright-report/after-fix/**', allowEmptyArchive: true
                 }
             }
         }
