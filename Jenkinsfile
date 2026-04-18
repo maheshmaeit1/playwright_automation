@@ -133,7 +133,7 @@ pipeline {
 
                     def healExitCode = bat(
                         returnStatus: true,
-                        script: "python ${env.HEALER_SCRIPT} --report ${env.PLAYWRIGHT_JSON_REPORT} --workspace . --output ${env.HEALING_REPORT} ${dryRun}"
+                        script: "set PYTHONIOENCODING=utf-8 && python ${env.HEALER_SCRIPT} --report ${env.PLAYWRIGHT_JSON_REPORT} --workspace . --output ${env.HEALING_REPORT} ${dryRun}"
                     )
 
                     env.HEAL_EXIT_CODE = healExitCode.toString()

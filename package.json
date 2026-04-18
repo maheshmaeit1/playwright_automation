@@ -6,6 +6,7 @@
   "scripts": {
     "bdd:generate": "bddgen test",
     "test": "playwright test",
+    "test:report": "playwright test",
     "test:api": "playwright test --project=api",
     "test:api:payment": "playwright test tests/api/payment.api.spec.ts --project=api",
     "test:bdd": "npm run bdd:generate && playwright test --project=bdd",
