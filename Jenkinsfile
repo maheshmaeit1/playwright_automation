@@ -80,8 +80,8 @@ pipeline {
                 }
                 stage('Python') {
                     steps {
-                        bat 'py --version && py -m pip --version'
-                        bat 'py -m pip install --quiet -r healer/requirements.txt'
+                        bat 'python --version && python -m pip --version'
+                        bat 'python -m pip install --quiet -r healer/requirements.txt'
                     }
                 }
             }
