@@ -74,8 +74,8 @@ pipeline {
                 stage('Node / Playwright') {
                     steps {
                         bat 'node --version && npm --version'
-                        //bat 'npm ci'
-                        //bat 'npx playwright install chromium'
+                        bat 'npm ci'
+                        bat 'npx playwright install chromium'
                     }
                 }
                 stage('Python') {
