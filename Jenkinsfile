@@ -74,7 +74,7 @@ pipeline {
                 stage('Node / Playwright') {
                     steps {
                         bat 'node --version && npm --version'
-                        bat 'npm ci'
+                        bat 'npm i'
                         bat 'npx playwright install chromium'
                     }
                 }
@@ -113,14 +113,7 @@ pipeline {
             }
             post {
                 always {
-                    publishHTML(target: [
-                        allowMissing:         true,
-                        alwaysLinkToLastBuild: true,
-                        keepAll:              true,
-                        reportDir:            'playwright-report',
-                        reportFiles:          'index.html',
-                        reportName:           'Playwright Report (initial run)'
-                    ])
+                    archiveArtifacts artifacts: 'playwright-report/**', allowEmptyArchive: true
                 }
             }
         }
@@ -193,14 +186,7 @@ pipeline {
             }
             post {
                 always {
-                    publishHTML(target: [
-                        allowMissing:         true,
-                        alwaysLinkToLastBuild: true,
-                        keepAll:              true,
-                        reportDir:            'playwright-report',
-                        reportFiles:          'index.html',
-                        reportName:           'Playwright Report (after healing)'
-                    ])
+                    archiveArtifacts artifacts: 'playwright-report/**', allowEmptyArchive: true
                 }
             }
         }
