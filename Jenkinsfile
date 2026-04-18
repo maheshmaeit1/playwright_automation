@@ -91,7 +91,13 @@ pipeline {
         stage('Test') {
             steps {
                 script {
-                    bat 'if not exist test-results mkdir test-results'
+                    bat '''
+                        if exist reports rd /s /q reports
+                        if exist playwright-report rd /s /q playwright-report
+                        if exist test-results rd /s /q test-results
+                        mkdir reports
+                        mkdir test-results
+                    '''
 
                     def grepFlag = params.TEST_GREP
                         ? "--grep \"${params.TEST_GREP}\""
@@ -114,17 +120,17 @@ pipeline {
             post {
                 always {
                     powershell '''
-                        if (Test-Path 'reports/initial') { Remove-Item 'reports/initial' -Recurse -Force }
-                        New-Item -ItemType Directory -Path 'reports/initial' -Force | Out-Null
-                        if (Test-Path 'playwright-report') {
-                            Copy-Item 'playwright-report/*' 'reports/initial' -Recurse -Force
+                        if (Test-Path 'reports/original-execution') { Remove-Item 'reports/original-execution' -Recurse -Force -ErrorAction SilentlyContinue }
+                        New-Item -ItemType Directory -Path 'reports/original-execution' -Force | Out-Null
+                        if (Test-Path 'playwright-report/index.html') {
+                            Copy-Item 'playwright-report/*' 'reports/original-execution' -Recurse -Force
                         }
                     '''
                     publishHTML(target: [
                         allowMissing:          true,
                         alwaysLinkToLastBuild: true,
                         keepAll:               true,
-                        reportDir:             'reports/initial',
+                        reportDir:             'reports/original-execution',
                         reportFiles:           'index.html',
                         reportName:            'Original Execution - Playwright Report'
                     ])
@@ -219,17 +225,17 @@ pipeline {
             post {
                 always {
                     powershell '''
-                        if (Test-Path 'reports/rerun') { Remove-Item 'reports/rerun' -Recurse -Force }
-                        New-Item -ItemType Directory -Path 'reports/rerun' -Force | Out-Null
-                        if (Test-Path 'playwright-report') {
-                            Copy-Item 'playwright-report/*' 'reports/rerun' -Recurse -Force
+                        if (Test-Path 'reports/re-execution') { Remove-Item 'reports/re-execution' -Recurse -Force -ErrorAction SilentlyContinue }
+                        New-Item -ItemType Directory -Path 'reports/re-execution' -Force | Out-Null
+                        if (Test-Path 'playwright-report/index.html') {
+                            Copy-Item 'playwright-report/*' 'reports/re-execution' -Recurse -Force
                         }
                     '''
                     publishHTML(target: [
                         allowMissing:          true,
                         alwaysLinkToLastBuild: true,
                         keepAll:               true,
-                        reportDir:             'reports/rerun',
+                        reportDir:             'reports/re-execution',
                         reportFiles:           'index.html',
                         reportName:            'Re-execution - Playwright Report'
                     ])
@@ -268,7 +274,6 @@ pipeline {
         always {
             archiveArtifacts artifacts: 'test-results/**/*', allowEmptyArchive: true
             archiveArtifacts artifacts: 'playwright-report/**/*', allowEmptyArchive: true
-            archiveArtifacts artifacts: 'reports/**/*', allowEmptyArchive: true
 
             script {
                 if (fileExists(env.HEALING_REPORT)) {
