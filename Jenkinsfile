@@ -223,7 +223,7 @@ pipeline {
     // ── Post-pipeline ─────────────────────────────────────────────────────────
     post {
         always {
-            archiveArtifacts artifacts: 'test-results/**', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'test-results/**, playwright-report/**', allowEmptyArchive: true
 
             script {
                 if (fileExists(env.HEALING_REPORT)) {
