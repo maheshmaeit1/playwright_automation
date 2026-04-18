@@ -124,8 +124,13 @@ pipeline {
                         New-Item -ItemType Directory -Path 'reports/original-execution' -Force | Out-Null
                         if (Test-Path 'playwright-report/index.html') {
                             Copy-Item 'playwright-report/*' 'reports/original-execution' -Recurse -Force
+                        } else {
+                            @"
+<html><body><h1>Original Execution - Playwright Report</h1><p>No Playwright HTML report was generated for the original run.</p></body></html>
+"@ | Set-Content 'reports/original-execution/index.html'
                         }
                     '''
+                    archiveArtifacts artifacts: 'reports/original-execution/**/*', allowEmptyArchive: true
                     publishHTML(target: [
                         allowMissing:          true,
                         alwaysLinkToLastBuild: true,
@@ -179,6 +184,7 @@ pipeline {
 "@ | Set-Content 'reports/heal/index.html'
                         }
                     '''
+                    archiveArtifacts artifacts: 'reports/heal/**/*', allowEmptyArchive: true
                     archiveArtifacts artifacts: "${env.HEALING_REPORT}", allowEmptyArchive: true
                     archiveArtifacts artifacts: "${env.HEALER_LOG}", allowEmptyArchive: true
                     publishHTML(target: [
@@ -229,8 +235,13 @@ pipeline {
                         New-Item -ItemType Directory -Path 'reports/re-execution' -Force | Out-Null
                         if (Test-Path 'playwright-report/index.html') {
                             Copy-Item 'playwright-report/*' 'reports/re-execution' -Recurse -Force
+                        } else {
+                            @"
+<html><body><h1>Re-execution - Playwright Report</h1><p>No Playwright HTML report was generated for the re-execution run.</p></body></html>
+"@ | Set-Content 'reports/re-execution/index.html'
                         }
                     '''
+                    archiveArtifacts artifacts: 'reports/re-execution/**/*', allowEmptyArchive: true
                     publishHTML(target: [
                         allowMissing:          true,
                         alwaysLinkToLastBuild: true,
