@@ -1,0 +1,32 @@
+{
+  "name": "bank_project",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "bdd:generate": "bddgen test",
+    "test": "playwright test",
+    "test:api": "playwright test --project=api",
+    "test:api:payment": "playwright test tests/api/payment.api.spec.ts --project=api",
+    "test:bdd": "npm run bdd:generate && playwright test --project=bdd",
+    "test:headed": "playwright test --project=ui --headed",
+    "test:ui": "playwright test --project=ui",
+    "test:ui:mode": "playwright test --ui",
+    "test:visual": "playwright test --project=visual",
+    "test:visual:update": "playwright test --project=visual --update-snapshots",
+    "codegen": "playwright codegen",
+    "pw:install": "playwright install",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@cucumber/cucumber": "^12.7.0",
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^25.5.0",
+    "allure": "3.3.1",
+    "playwright-bdd": "^8.5.0",
+    "typescript": "^6.0.2"
+  }
+}

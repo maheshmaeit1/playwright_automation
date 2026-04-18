@@ -1,0 +1,14 @@
+
+
+
+Jenkins
+Build
+
+test execution
+  ==> Agent with figure out the fix, test run
+  ==> Fixes ready => Githhub MCP => Agent will create a PR with the fix and the test case
+  ==> you need to review
+  => Merge
+  => Reexecution
+  
+  

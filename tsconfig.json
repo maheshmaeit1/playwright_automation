@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "moduleResolution": "bundler",
+    "types": ["node", "@playwright/test"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "ignoreDeprecations": "6.0",
+    "baseUrl": "."
+  },
+  "include": [
+    "playwright.config.ts",
+    "tests/**/*.ts",
+    "features/**/*.ts",
+    "pages/**/*.ts",
+    "fixtures/**/*.ts",
+    "api/**/*.ts"
+  ]
+}
