@@ -177,7 +177,11 @@ class PlaywrightTestHealer:
     # ── file helpers ──────────────────────────
 
     def _read(self, path: str) -> str:
-        for candidate in (self.workspace / path, Path(path)):
+        for candidate in (
+            self.workspace / path,
+            (self.workspace / "tests" / path).resolve(),
+            Path(path),
+        ):
             try:
                 if candidate.exists():
                     return candidate.read_text(encoding="utf-8")
@@ -243,7 +247,11 @@ class PlaywrightTestHealer:
         if not fixed_code.strip():
             return False
 
-        for candidate in (self.workspace / failure.file_path, Path(failure.file_path)):
+        for candidate in (
+            self.workspace / failure.file_path,
+            (self.workspace / "tests" / failure.file_path).resolve(),
+            Path(failure.file_path),
+        ):
             if candidate.exists():
                 target = candidate
                 break
