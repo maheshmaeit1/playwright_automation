@@ -22,7 +22,12 @@ export default defineConfig({
       caret: 'hide'
     }
   },
-  reporter: [['list'], ['html', { open: 'never' }]],
+  reporter: [
+    ['list'],
+    ['html', { open: 'never' }],
+    // JSON report consumed by the healer agent in CI
+    ...(process.env.CI ? [['json', { outputFile: 'test-results/results.json' }] as const] : [])
+  ],
   use: {
     headless: true,
     actionTimeout: 10_000,
