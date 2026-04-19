@@ -45,6 +45,7 @@ pipeline {
         HEALING_REPORT         = 'test-results/healing_report.json'
         HEALER_SCRIPT          = 'healer/healer_agent.py'
         HEALER_LOG             = 'healer.log'
+        PATH                   = "${env.PATH};C:/Users/mahes/AppData/Roaming/Code/User/globalStorage/github.copilot-chat/copilotCli"
 
         // Application URL — override per environment if needed
         BASE_URL = "${env.BASE_URL ?: 'http://localhost:5173'}"
