@@ -133,7 +133,7 @@ pipeline {
             post {
                 always {
                     bat '''
-                        if exist allure-results\original-execution (
+                        if exist allure-results/original-execution (
                             call npm run allure:original
                         )
                     '''
@@ -252,7 +252,7 @@ pipeline {
             post {
                 always {
                     bat '''
-                        if exist allure-results\re-execution-after-fix (
+                        if exist allure-results/re-execution-after-fix (
                             call npm run allure:rerun
                         )
                     '''
