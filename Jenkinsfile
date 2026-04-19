@@ -102,9 +102,13 @@ pipeline {
                         if exist reports rd /s /q reports
                         if exist published-reports rd /s /q published-reports
                         if exist playwright-report rd /s /q playwright-report
+                        if exist allure-results rd /s /q allure-results
+                        if exist allure-report rd /s /q allure-report
                         if exist test-results rd /s /q test-results
                         mkdir reports
                         mkdir published-reports
+                        mkdir allure-results
+                        mkdir allure-report
                         mkdir test-results
                     '''
 
@@ -114,7 +118,7 @@ pipeline {
 
                     def exitCode = bat(
                         returnStatus: true,
-                        script: "set \"PLAYWRIGHT_HTML_OUTPUT_DIR=playwright-report/original-execution\" && npx playwright test ${grepFlag}"
+                        script: "set \"PLAYWRIGHT_HTML_OUTPUT_DIR=playwright-report/original-execution\" && set \"ALLURE_RESULTS_DIR=allure-results/original-execution\" && npx playwright test ${grepFlag}"
                     )
 
                     env.INITIAL_EXIT_CODE = exitCode.toString()
@@ -128,10 +132,17 @@ pipeline {
             }
             post {
                 always {
+                    bat '''
+                        if exist allure-results\original-execution (
+                            call npm run allure:original
+                        )
+                    '''
                     powershell '''
-                        & './scripts/generate-jenkins-report.ps1' -OutputDir 'published-reports/original-execution' -Title 'Original Execution - Playwright Report' -JsonReportPath 'test-results/results.json'
+                        & './scripts/generate-jenkins-report.ps1' -OutputDir 'published-reports/original-execution' -Title 'Original Execution - Playwright Report' -JsonReportPath 'test-results/results.json' -ReportLink '../../playwright-report/original-execution/index.html'
                     '''
                     archiveArtifacts artifacts: 'playwright-report/original-execution/**/*', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'allure-results/original-execution/**/*', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'allure-report/original-execution/**/*', allowEmptyArchive: true
                     archiveArtifacts artifacts: 'published-reports/original-execution/**/*', allowEmptyArchive: true
                     publishHTML(target: [
                         allowMissing:          true,
@@ -140,6 +151,14 @@ pipeline {
                         reportDir:             'published-reports/original-execution',
                         reportFiles:           'index.html',
                         reportName:            'Original Execution - Playwright Report'
+                    ])
+                    publishHTML(target: [
+                        allowMissing:          true,
+                        alwaysLinkToLastBuild: true,
+                        keepAll:               true,
+                        reportDir:             'allure-report/original-execution',
+                        reportFiles:           'index.html',
+                        reportName:            'Original Execution - Allure Report'
                     ])
                 }
             }
@@ -214,7 +233,7 @@ pipeline {
 
                     def exitCode = bat(
                         returnStatus: true,
-                        script: "set \"PLAYWRIGHT_HTML_OUTPUT_DIR=playwright-report/re-execution-after-fix\" && npx playwright test ${grepFlag}"
+                        script: "set \"PLAYWRIGHT_HTML_OUTPUT_DIR=playwright-report/re-execution-after-fix\" && set \"ALLURE_RESULTS_DIR=allure-results/re-execution-after-fix\" && npx playwright test ${grepFlag}"
                     )
 
                     if (fileExists('test-results/results.json')) {
@@ -232,10 +251,17 @@ pipeline {
             }
             post {
                 always {
+                    bat '''
+                        if exist allure-results\re-execution-after-fix (
+                            call npm run allure:rerun
+                        )
+                    '''
                     powershell '''
-                        & './scripts/generate-jenkins-report.ps1' -OutputDir 'published-reports/re-execution' -Title 'Re-execution - Playwright Report' -JsonReportPath 'test-results/rerun-results.json'
+                        & './scripts/generate-jenkins-report.ps1' -OutputDir 'published-reports/re-execution' -Title 'Re-execution - Playwright Report' -JsonReportPath 'test-results/rerun-results.json' -ReportLink '../../playwright-report/re-execution-after-fix/index.html'
                     '''
                     archiveArtifacts artifacts: 'playwright-report/re-execution-after-fix/**/*', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'allure-results/re-execution-after-fix/**/*', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'allure-report/re-execution-after-fix/**/*', allowEmptyArchive: true
                     archiveArtifacts artifacts: 'published-reports/re-execution/**/*', allowEmptyArchive: true
                     publishHTML(target: [
                         allowMissing:          true,
@@ -244,6 +270,14 @@ pipeline {
                         reportDir:             'published-reports/re-execution',
                         reportFiles:           'index.html',
                         reportName:            'Re-execution - Playwright Report'
+                    ])
+                    publishHTML(target: [
+                        allowMissing:          true,
+                        alwaysLinkToLastBuild: true,
+                        keepAll:               true,
+                        reportDir:             'allure-report/re-execution-after-fix',
+                        reportFiles:           'index.html',
+                        reportName:            'Re-execution - Allure Report'
                     ])
                 }
             }
