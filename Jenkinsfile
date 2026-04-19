@@ -173,6 +173,8 @@ pipeline {
                         echo 'Healer: all failures addressed.'
                     } else if (healExitCode == 1) {
                         echo 'Healer: some failures could not be auto-fixed (see healing_report.json).'
+                    } else if (healExitCode == 2) {
+                        echo 'Healer unavailable: Copilot CLI is not installed or not signed in for the Jenkins account. Skipping self-healing for this run.'
                     } else {
                         error "Healer exited with unexpected code ${healExitCode} — check healer.log."
                     }
@@ -212,6 +214,7 @@ pipeline {
                     expression { env.INITIAL_EXIT_CODE != '0' }
                     expression { !params.SKIP_HEALING }
                     expression { !params.DRY_RUN }
+                    expression { env.HEAL_EXIT_CODE == '0' }
                 }
             }
             steps {
@@ -309,6 +312,11 @@ pipeline {
                 if (env.RERUN_EXIT_CODE && env.RERUN_EXIT_CODE != '0') {
                     currentBuild.result = 'FAILURE'
                     error 'Tests still failing after healing — manual fix required.'
+                }
+
+                if (env.INITIAL_EXIT_CODE != '0' && env.HEAL_EXIT_CODE == '2') {
+                    currentBuild.result = 'FAILURE'
+                    error 'Tests failed and the healer could not run because GitHub Copilot CLI is unavailable for the Jenkins account.'
                 }
 
                 if (env.INITIAL_EXIT_CODE != '0' && params.SKIP_HEALING) {
