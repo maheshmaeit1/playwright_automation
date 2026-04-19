@@ -45,7 +45,6 @@ pipeline {
         HEALING_REPORT         = 'test-results/healing_report.json'
         HEALER_SCRIPT          = 'healer/healer_agent.py'
         HEALER_LOG             = 'healer.log'
-        COPILOT_CLI_COMMAND    = 'copilot'
 
         // Application URL — override per environment if needed
         BASE_URL = "${env.BASE_URL ?: 'http://localhost:5173'}"
@@ -72,41 +71,15 @@ pipeline {
                 stage('Node / Playwright') {
                     steps {
                         bat 'node --version && npm --version'
-                        script {
-                            env.COPILOT_CLI_COMMAND = powershell(
-                                returnStdout: true,
-                                script: '''
-                                    $candidates = @()
-
-                                    if ($env:COPILOT_CLI_COMMAND) {
-                                        $candidates += $env:COPILOT_CLI_COMMAND
-                                    }
-
-                                    $cmd = Get-Command copilot -ErrorAction SilentlyContinue
-                                    if ($cmd) {
-                                        $candidates += $cmd.Source
-                                    }
-
-                                    if ($env:APPDATA) {
-                                        $candidates += (Join-Path $env:APPDATA 'Code/User/globalStorage/github.copilot-chat/copilotCli/copilot.bat')
-                                    }
-
-                                    if ($env:USERPROFILE) {
-                                        $candidates += (Join-Path $env:USERPROFILE 'AppData/Roaming/Code/User/globalStorage/github.copilot-chat/copilotCli/copilot.bat')
-                                    }
-
-                                    $resolved = $candidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
-
-                                    if (-not $resolved) {
-                                        throw 'GitHub Copilot CLI was not found for the Jenkins service account. Install/sign in to Copilot on the agent, or set COPILOT_CLI_COMMAND to the full copilot.bat path.'
-                                    }
-
-                                    Write-Output $resolved
-                                '''
-                            ).trim()
-
-                            bat "\"${env.COPILOT_CLI_COMMAND}\" --version"
-                        }
+                        bat '''
+                            where copilot >nul 2>nul
+                            if %ERRORLEVEL% EQU 0 (
+                                copilot --version
+                            ) else (
+                                echo Copilot CLI is not on PATH for this Jenkins account.
+                                echo The Python healer will try its own fallback discovery.
+                            )
+                        '''
                         bat 'npm i'
                         bat 'npx playwright install chromium'
                     }
@@ -191,7 +164,7 @@ pipeline {
 
                     def healExitCode = bat(
                         returnStatus: true,
-                        script: "set PYTHONIOENCODING=utf-8 && set COPILOT_CLI_COMMAND=${env.COPILOT_CLI_COMMAND} && python ${env.HEALER_SCRIPT} --report ${env.PLAYWRIGHT_JSON_REPORT} --workspace . --output ${env.HEALING_REPORT} --copilot-command \"${env.COPILOT_CLI_COMMAND}\" ${dryRun}"
+                        script: "set PYTHONIOENCODING=utf-8 && python ${env.HEALER_SCRIPT} --report ${env.PLAYWRIGHT_JSON_REPORT} --workspace . --output ${env.HEALING_REPORT} ${dryRun}"
                     )
 
                     env.HEAL_EXIT_CODE = healExitCode.toString()
