@@ -88,11 +88,11 @@ pipeline {
                                     }
 
                                     if ($env:APPDATA) {
-                                        $candidates += (Join-Path $env:APPDATA 'Code\User\globalStorage\github.copilot-chat\copilotCli\copilot.bat')
+                                        $candidates += (Join-Path $env:APPDATA 'Code/User/globalStorage/github.copilot-chat/copilotCli/copilot.bat')
                                     }
 
                                     if ($env:USERPROFILE) {
-                                        $candidates += (Join-Path $env:USERPROFILE 'AppData\Roaming\Code\User\globalStorage\github.copilot-chat\copilotCli\copilot.bat')
+                                        $candidates += (Join-Path $env:USERPROFILE 'AppData/Roaming/Code/User/globalStorage/github.copilot-chat/copilotCli/copilot.bat')
                                     }
 
                                     $resolved = $candidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
