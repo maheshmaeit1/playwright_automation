@@ -161,6 +161,41 @@ If you cannot determine a reliable fix, set confidence to "low" and leave fixed_
 """
 
 
+def resolve_cli_command(cli_command: str) -> list[str]:
+    raw_command = os.path.expandvars((cli_command or "copilot").strip())
+    cmd = shlex.split(raw_command, posix=os.name != "nt") if raw_command else ["copilot"]
+
+    executable = cmd[0] if cmd else "copilot"
+    if executable and (shutil.which(executable) or Path(executable).exists()):
+        return cmd
+
+    if executable.lower() == "copilot" and shutil.which("gh"):
+        return ["gh", "copilot"]
+
+    candidates: list[Path] = []
+    if os.name == "nt":
+        appdata = os.environ.get("APPDATA")
+        userprofile = os.environ.get("USERPROFILE")
+        roaming_base = str(Path(userprofile) / "AppData" / "Roaming") if userprofile else None
+
+        for base in filter(None, [appdata, roaming_base]):
+            candidates.extend(
+                [
+                    Path(base) / "Code" / "User" / "globalStorage" / "github.copilot-chat" / "copilotCli" / "copilot.bat",
+                    Path(base) / "Code" / "User" / "globalStorage" / "github.copilot-chat" / "copilotCli" / "copilot.ps1",
+                ]
+            )
+
+    for candidate in candidates:
+        if candidate.exists():
+            return [str(candidate)]
+
+    raise FileNotFoundError(
+        "Copilot CLI was not found. On Jenkins/Windows, install and sign in to the Copilot CLI "
+        "for the same service account running the job, or set COPILOT_CLI_COMMAND to the full copilot.bat path."
+    )
+
+
 class PlaywrightTestHealer:
     def __init__(
         self,
@@ -230,13 +265,7 @@ class PlaywrightTestHealer:
             f"{prompt}"
         )
 
-        cmd = shlex.split(self.cli_command, posix=os.name != "nt")
-        executable = cmd[0] if cmd else "copilot"
-        if shutil.which(executable) is None:
-            raise FileNotFoundError(
-                f"Copilot CLI was not found on PATH: {executable}. "
-                "Install/sign in to GitHub Copilot CLI or set COPILOT_CLI_COMMAND."
-            )
+        cmd = resolve_cli_command(self.cli_command)
 
         response = subprocess.run(
             [
@@ -502,12 +531,10 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
 
-    cmd = shlex.split(args.copilot_command, posix=os.name != "nt")
-    executable = cmd[0] if cmd else "copilot"
-    if shutil.which(executable) is None:
-        logger.error(
-            "Copilot CLI is not available on PATH. Install/sign in to GitHub Copilot CLI or set COPILOT_CLI_COMMAND."
-        )
+    try:
+        resolve_cli_command(args.copilot_command)
+    except FileNotFoundError as exc:
+        logger.error(str(exc))
         sys.exit(2)
 
     healer = PlaywrightTestHealer(
