@@ -100,9 +100,11 @@ pipeline {
                 script {
                     bat '''
                         if exist reports rd /s /q reports
+                        if exist published-reports rd /s /q published-reports
                         if exist playwright-report rd /s /q playwright-report
                         if exist test-results rd /s /q test-results
                         mkdir reports
+                        mkdir published-reports
                         mkdir test-results
                     '''
 
@@ -112,7 +114,7 @@ pipeline {
 
                     def exitCode = bat(
                         returnStatus: true,
-                        script: "set PLAYWRIGHT_HTML_OUTPUT_DIR=reports/original-execution/playwright && npx playwright test ${grepFlag}"
+                        script: "set \"PLAYWRIGHT_HTML_OUTPUT_DIR=reports/original-execution/playwright\" && npx playwright test ${grepFlag}"
                     )
 
                     env.INITIAL_EXIT_CODE = exitCode.toString()
@@ -127,14 +129,15 @@ pipeline {
             post {
                 always {
                     powershell '''
-                        & './scripts/generate-jenkins-report.ps1' -OutputDir 'reports/original-execution' -Title 'Original Execution - Playwright Report' -JsonReportPath 'test-results/results.json' -ReportLink 'playwright/index.html'
+                        & './scripts/generate-jenkins-report.ps1' -OutputDir 'published-reports/original-execution' -Title 'Original Execution - Playwright Report' -JsonReportPath 'test-results/results.json'
                     '''
-                    archiveArtifacts artifacts: 'reports/original-execution/**/*', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'reports/original-execution/playwright/**/*', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'published-reports/original-execution/**/*', allowEmptyArchive: true
                     publishHTML(target: [
                         allowMissing:          true,
                         alwaysLinkToLastBuild: true,
                         keepAll:               true,
-                        reportDir:             'reports/original-execution',
+                        reportDir:             'published-reports/original-execution',
                         reportFiles:           'index.html',
                         reportName:            'Original Execution - Playwright Report'
                     ])
@@ -157,7 +160,7 @@ pipeline {
 
                     def healExitCode = bat(
                         returnStatus: true,
-                        script: "set PYTHONIOENCODING=utf-8 && python ${env.HEALER_SCRIPT} --report ${env.PLAYWRIGHT_JSON_REPORT} --workspace . --output ${env.HEALING_REPORT} ${dryRun}"
+                        script: "set \"PYTHONIOENCODING=utf-8\" && python ${env.HEALER_SCRIPT} --report ${env.PLAYWRIGHT_JSON_REPORT} --workspace . --output ${env.HEALING_REPORT} ${dryRun}"
                     )
 
                     env.HEAL_EXIT_CODE = healExitCode.toString()
@@ -176,16 +179,16 @@ pipeline {
             post {
                 always {
                     powershell '''
-                        & './scripts/generate-jenkins-report.ps1' -OutputDir 'reports/heal' -Title 'Test Heal Report' -SourceHtmlPath 'test-results/healing_report.html' -FallbackMessage 'No healing HTML report was generated for this run.'
+                        & './scripts/generate-jenkins-report.ps1' -OutputDir 'published-reports/heal' -Title 'Test Heal Report' -SourceHtmlPath 'test-results/healing_report.html' -FallbackMessage 'No healing HTML report was generated for this run.'
                     '''
-                    archiveArtifacts artifacts: 'reports/heal/**/*', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'published-reports/heal/**/*', allowEmptyArchive: true
                     archiveArtifacts artifacts: "${env.HEALING_REPORT}", allowEmptyArchive: true
                     archiveArtifacts artifacts: "${env.HEALER_LOG}", allowEmptyArchive: true
                     publishHTML(target: [
                         allowMissing:          true,
                         alwaysLinkToLastBuild: true,
                         keepAll:               true,
-                        reportDir:             'reports/heal',
+                        reportDir:             'published-reports/heal',
                         reportFiles:           'index.html',
                         reportName:            'Test Heal Report'
                     ])
@@ -211,7 +214,7 @@ pipeline {
 
                     def exitCode = bat(
                         returnStatus: true,
-                        script: "set PLAYWRIGHT_HTML_OUTPUT_DIR=reports/re-execution/playwright && npx playwright test ${grepFlag}"
+                        script: "set \"PLAYWRIGHT_HTML_OUTPUT_DIR=reports/re-execution/playwright\" && npx playwright test ${grepFlag}"
                     )
 
                     if (fileExists('test-results/results.json')) {
@@ -230,14 +233,15 @@ pipeline {
             post {
                 always {
                     powershell '''
-                        & './scripts/generate-jenkins-report.ps1' -OutputDir 'reports/re-execution' -Title 'Re-execution - Playwright Report' -JsonReportPath 'test-results/rerun-results.json' -ReportLink 'playwright/index.html'
+                        & './scripts/generate-jenkins-report.ps1' -OutputDir 'published-reports/re-execution' -Title 'Re-execution - Playwright Report' -JsonReportPath 'test-results/rerun-results.json'
                     '''
-                    archiveArtifacts artifacts: 'reports/re-execution/**/*', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'reports/re-execution/playwright/**/*', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'published-reports/re-execution/**/*', allowEmptyArchive: true
                     publishHTML(target: [
                         allowMissing:          true,
                         alwaysLinkToLastBuild: true,
                         keepAll:               true,
-                        reportDir:             'reports/re-execution',
+                        reportDir:             'published-reports/re-execution',
                         reportFiles:           'index.html',
                         reportName:            'Re-execution - Playwright Report'
                     ])
