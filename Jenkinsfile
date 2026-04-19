@@ -112,7 +112,7 @@ pipeline {
 
                     def exitCode = bat(
                         returnStatus: true,
-                        script: "set PLAYWRIGHT_JSON_OUTPUT_NAME=${env.PLAYWRIGHT_JSON_REPORT} && set PLAYWRIGHT_HTML_OUTPUT_DIR=reports/original-execution/playwright && npx playwright test ${grepFlag}"
+                        script: "set PLAYWRIGHT_HTML_OUTPUT_DIR=reports/original-execution/playwright && npx playwright test ${grepFlag}"
                     )
 
                     env.INITIAL_EXIT_CODE = exitCode.toString()
@@ -211,8 +211,12 @@ pipeline {
 
                     def exitCode = bat(
                         returnStatus: true,
-                        script: "set PLAYWRIGHT_JSON_OUTPUT_NAME=test-results/rerun-results.json && set PLAYWRIGHT_HTML_OUTPUT_DIR=reports/re-execution/playwright && npx playwright test ${grepFlag}"
+                        script: "set PLAYWRIGHT_HTML_OUTPUT_DIR=reports/re-execution/playwright && npx playwright test ${grepFlag}"
                     )
+
+                    if (fileExists('test-results/results.json')) {
+                        powershell "Copy-Item 'test-results/results.json' 'test-results/rerun-results.json' -Force"
+                    }
 
                     env.RERUN_EXIT_CODE = exitCode.toString()
 

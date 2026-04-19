@@ -43,7 +43,12 @@ if ($SourceHtmlPath -and (Test-Path $SourceHtmlPath)) {
 }
 
 if (-not $JsonReportPath -or -not (Test-Path $JsonReportPath)) {
-    Write-SimpleHtml -PageTitle $Title -BodyHtml "<h1>$Title</h1><p>$FallbackMessage</p>"
+    $fallbackLinkHtml = if ($ReportLink) {
+        "<p><a href='$ReportLink'>Open full Playwright report files</a></p>"
+    } else {
+        ''
+    }
+    Write-SimpleHtml -PageTitle $Title -BodyHtml "<h1>$Title</h1><p>$FallbackMessage</p>$fallbackLinkHtml"
     exit 0
 }
 
