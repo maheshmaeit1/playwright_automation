@@ -9,13 +9,15 @@ Usage:
     python healer_agent.py --report results.json --workspace . --dry-run
 """
 
-import anthropic
 import json
 import os
 import re
 import sys
+import shlex
+import shutil
 import argparse
 import logging
+import subprocess
 from pathlib import Path
 from datetime import datetime
 from dataclasses import dataclass, field
@@ -164,14 +166,15 @@ class PlaywrightTestHealer:
         self,
         workspace: str,
         dry_run: bool = False,
-        model: str = "claude-sonnet-4-6",
+        model: str = "github-copilot",
         max_tokens: int = 8096,
+        cli_command: str = "copilot",
     ) -> None:
         self.workspace = Path(workspace).resolve()
         self.dry_run = dry_run
         self.model = model
         self.max_tokens = max_tokens
-        self.client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+        self.cli_command = cli_command
         self._results: list[HealingResult] = []
 
     # ── file helpers ──────────────────────────
@@ -217,16 +220,50 @@ class PlaywrightTestHealer:
             page_objects_section=po_section,
         )
 
-    # ── Claude call ───────────────────────────
+    # ── Copilot CLI call ──────────────────────
 
-    def _call_claude(self, prompt: str) -> dict:
-        response = self.client.messages.create(
-            model=self.model,
-            max_tokens=self.max_tokens,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": prompt}],
+    def _call_copilot(self, prompt: str) -> dict:
+        full_prompt = (
+            f"{SYSTEM_PROMPT}\n\n"
+            f"Model hint: {self.model}. "
+            f"Return only the requested JSON object.\n\n"
+            f"{prompt}"
         )
-        raw = response.content[0].text.strip()
+
+        cmd = shlex.split(self.cli_command, posix=os.name != "nt")
+        executable = cmd[0] if cmd else "copilot"
+        if shutil.which(executable) is None:
+            raise FileNotFoundError(
+                f"Copilot CLI was not found on PATH: {executable}. "
+                "Install/sign in to GitHub Copilot CLI or set COPILOT_CLI_COMMAND."
+            )
+
+        response = subprocess.run(
+            [
+                *cmd,
+                f"--prompt={full_prompt}",
+                "--silent",
+                "--output-format",
+                "text",
+            ],
+            cwd=str(self.workspace),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=180,
+            check=False,
+        )
+
+        if response.returncode != 0:
+            stderr = (response.stderr or response.stdout or "").strip()
+            raise RuntimeError(
+                f"Copilot CLI failed with exit code {response.returncode}: {stderr}"
+            )
+
+        raw = (response.stdout or "").strip()
+        if not raw:
+            raise RuntimeError("Copilot CLI returned an empty response.")
 
         # Strip accidental markdown fences
         raw = re.sub(r"^```(?:json)?\s*", "", raw)
@@ -291,14 +328,14 @@ class PlaywrightTestHealer:
         prompt = self._build_prompt(failure, test_src)
 
         try:
-            analysis = self._call_claude(prompt)
+            analysis = self._call_copilot(prompt)
         except Exception as exc:
-            logger.error("Claude API error: %s", exc)
+            logger.error("Copilot CLI error: %s", exc)
             result = HealingResult(
                 test_title=failure.test_title,
                 file_path=failure.file_path,
                 success=False,
-                root_cause=f"Claude API error: {exc}",
+                root_cause=f"Copilot CLI error: {exc}",
                 fix_description="",
             )
             self._results.append(result)
@@ -452,7 +489,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--report", required=True, help="Path to Playwright JSON report")
     p.add_argument("--workspace", default=".", help="Project root directory")
     p.add_argument("--output", default="healing_report.json", help="Where to write the healing report")
-    p.add_argument("--model", default="claude-sonnet-4-6", help="Anthropic model ID")
+    p.add_argument("--model", default="github-copilot", help="Optional Copilot model hint")
+    p.add_argument(
+        "--copilot-command",
+        default=os.environ.get("COPILOT_CLI_COMMAND", "copilot"),
+        help="Copilot CLI command to use",
+    )
     p.add_argument("--dry-run", action="store_true", help="Analyse only; do not write fixes")
     return p.parse_args()
 
@@ -460,14 +502,19 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
 
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        logger.error("ANTHROPIC_API_KEY environment variable is not set.")
+    cmd = shlex.split(args.copilot_command, posix=os.name != "nt")
+    executable = cmd[0] if cmd else "copilot"
+    if shutil.which(executable) is None:
+        logger.error(
+            "Copilot CLI is not available on PATH. Install/sign in to GitHub Copilot CLI or set COPILOT_CLI_COMMAND."
+        )
         sys.exit(2)
 
     healer = PlaywrightTestHealer(
         workspace=args.workspace,
         dry_run=args.dry_run,
         model=args.model,
+        cli_command=args.copilot_command,
     )
 
     healer.heal_report(args.report)

@@ -141,18 +141,18 @@ For detailed visual testing guidance, see [VISUAL_TESTING_GUIDE.md](VISUAL_TESTI
 
 ## AI Test Healer
 
-The healer is a Python agent (`healer/healer_agent.py`) that reads a Playwright JSON failure report, sends each failing test to Claude AI for diagnosis, and automatically patches the test file with the fix.
+The healer is a Python agent (`healer/healer_agent.py`) that reads a Playwright JSON failure report, sends each failing test to the GitHub Copilot CLI for diagnosis, and automatically patches the test file with the fix.
 
 ### How it works
 
 ```
-Run tests → JSON report → Healer Agent → Claude AI → Patched test file → Re-run
+Run tests → JSON report → Healer Agent → GitHub Copilot CLI → Patched test file → Re-run
 ```
 
 1. Playwright runs and writes `test-results/results.json`
 2. The healer reads every failed test from that report
-3. For each failure it sends the test file + error + page objects to Claude
-4. Claude returns a root cause analysis and corrected file content
+3. For each failure it sends the test file + error + page objects to the GitHub Copilot CLI
+4. Copilot returns a root cause analysis and corrected file content
 5. The healer writes the fix and (in CI) re-runs the suite to verify
 
 ### Prerequisites
@@ -160,8 +160,8 @@ Run tests → JSON report → Healer Agent → Claude AI → Patched test file �
 | Requirement | Version |
 |---|---|
 | Python | 3.10 or later |
-| pip package `anthropic` | 0.40.0 or later |
-| Environment variable `ANTHROPIC_API_KEY` | your Anthropic API key |
+| GitHub Copilot CLI | installed and signed in |
+| Optional env var `COPILOT_CLI_COMMAND` | override the CLI command if needed |
 
 Install the Python dependency:
 
@@ -184,10 +184,16 @@ Alternatively, pass the reporter flag directly:
 npx playwright test --reporter=json > test-results/results.json
 ```
 
-**Step 2 — set your API key**
+**Step 2 — verify the Copilot CLI is available**
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...
+copilot --version
+```
+
+If you need a custom command, set:
+
+```bash
+export COPILOT_CLI_COMMAND="copilot"
 ```
 
 **Step 3 — run the healer**
@@ -237,7 +243,8 @@ npx playwright test
 | `--report` | *(required)* | Path to Playwright JSON report |
 | `--workspace` | `.` | Project root directory |
 | `--output` | `healing_report.json` | Where to write the healing summary |
-| `--model` | `claude-sonnet-4-6` | Anthropic model to use |
+| `--model` | `github-copilot` | Optional model hint for the prompt |
+| `--copilot-command` | `copilot` | Override the Copilot CLI command |
 | `--dry-run` | off | Analyse failures but do not write any file changes |
 
 ### Dry-run mode
@@ -262,7 +269,7 @@ The `Jenkinsfile` at the project root defines a full CI pipeline that runs tests
 | Stage | What it does |
 |---|---|
 | **Checkout** | Clones the repository |
-| **Setup** | Installs Node deps, Playwright browsers, and Python `anthropic` package (runs in parallel) |
+| **Setup** | Installs Node deps, Playwright browsers, and verifies the Copilot CLI is available |
 | **Test** | Runs the full Playwright suite and writes `test-results/results.json` |
 | **Heal** | Invokes `healer_agent.py` when there are failures |
 | **Re-run** | Re-runs the suite after healing to verify the fixes work |
@@ -270,14 +277,11 @@ The `Jenkinsfile` at the project root defines a full CI pipeline that runs tests
 
 ### Jenkins setup — step by step
 
-**Step 1 — add the Anthropic API key as a Jenkins credential**
+**Step 1 — ensure the Jenkins agent has the Copilot CLI installed and signed in**
 
-1. Go to **Jenkins → Manage Jenkins → Credentials → System → Global credentials**
-2. Click **Add Credentials**
-3. Kind: `Secret text`
-4. Secret: your Anthropic API key (`sk-ant-...`)
-5. ID: `anthropic-api-key`
-6. Save
+1. Install the GitHub Copilot CLI on the Jenkins worker
+2. Sign in once on that agent so non-interactive prompts are allowed
+3. Verify it with `copilot --version`
 
 **Step 2 — create a Pipeline job**
 

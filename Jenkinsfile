@@ -5,12 +5,12 @@
 //   1. Checkout
 //   2. Setup  – install Node deps + Playwright browsers + Python deps
 //   3. Test   – run Playwright and capture JSON report
-//   4. Heal   – invoke Python healer agent on failures (Claude AI)
+//   4. Heal   – invoke Python healer agent on failures (GitHub Copilot CLI)
 //   5. Re-run – verify fixes by re-running the full suite
 //   6. Commit – push healed test files back to the branch
 //
-// Required Jenkins credentials:
-//   anthropic-api-key  – Secret text credential with your Anthropic API key
+// Jenkins agent requirement:
+//   GitHub Copilot CLI must be installed and already signed in on the agent.
 //
 // Pipeline parameters (set in Jenkins UI or trigger payload):
 //   DRY_RUN      – analyse failures but do NOT write fixes (default: false)
@@ -40,9 +40,6 @@ pipeline {
     }
 
     environment {
-        // Injected from Jenkins credential store
-        ANTHROPIC_API_KEY = credentials('anthropic-api-key')
-
         // Paths used across stages
         PLAYWRIGHT_JSON_REPORT = 'test-results/results.json'
         HEALING_REPORT         = 'test-results/healing_report.json'
@@ -74,6 +71,7 @@ pipeline {
                 stage('Node / Playwright') {
                     steps {
                         bat 'node --version && npm --version'
+                        bat 'copilot --version'
                         bat 'npm i'
                         bat 'npx playwright install chromium'
                     }
