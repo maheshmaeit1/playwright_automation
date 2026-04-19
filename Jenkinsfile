@@ -112,7 +112,7 @@ pipeline {
 
                     def exitCode = bat(
                         returnStatus: true,
-                        script: "set PLAYWRIGHT_JSON_OUTPUT_NAME=${env.PLAYWRIGHT_JSON_REPORT} && npx playwright test"
+                        script: "set PLAYWRIGHT_JSON_OUTPUT_NAME=${env.PLAYWRIGHT_JSON_REPORT} && set PLAYWRIGHT_HTML_OUTPUT_DIR=reports/original-execution/playwright && npx playwright test ${grepFlag}"
                     )
 
                     env.INITIAL_EXIT_CODE = exitCode.toString()
@@ -127,15 +127,7 @@ pipeline {
             post {
                 always {
                     powershell '''
-                        if (Test-Path 'reports/original-execution') { Remove-Item 'reports/original-execution' -Recurse -Force -ErrorAction SilentlyContinue }
-                        New-Item -ItemType Directory -Path 'reports/original-execution' -Force | Out-Null
-                        if (Test-Path 'playwright-report/index.html') {
-                            Copy-Item 'playwright-report/*' 'reports/original-execution' -Recurse -Force
-                        } else {
-                            @"
-<html><body><h1>Original Execution - Playwright Report</h1><p>No Playwright HTML report was generated for the original run.</p></body></html>
-"@ | Set-Content 'reports/original-execution/index.html'
-                        }
+                        & './scripts/generate-jenkins-report.ps1' -OutputDir 'reports/original-execution' -Title 'Original Execution - Playwright Report' -JsonReportPath 'test-results/results.json' -ReportLink 'playwright/index.html'
                     '''
                     archiveArtifacts artifacts: 'reports/original-execution/**/*', allowEmptyArchive: true
                     publishHTML(target: [
@@ -184,14 +176,7 @@ pipeline {
             post {
                 always {
                     powershell '''
-                        New-Item -ItemType Directory -Path 'reports/heal' -Force | Out-Null
-                        if (Test-Path 'test-results/healing_report.html') {
-                            Copy-Item 'test-results/healing_report.html' 'reports/heal/index.html' -Force
-                        } else {
-                            @"
-<html><body><h1>Test Heal Report</h1><p>No healing HTML report was generated for this run.</p></body></html>
-"@ | Set-Content 'reports/heal/index.html'
-                        }
+                        & './scripts/generate-jenkins-report.ps1' -OutputDir 'reports/heal' -Title 'Test Heal Report' -SourceHtmlPath 'test-results/healing_report.html' -FallbackMessage 'No healing HTML report was generated for this run.'
                     '''
                     archiveArtifacts artifacts: 'reports/heal/**/*', allowEmptyArchive: true
                     archiveArtifacts artifacts: "${env.HEALING_REPORT}", allowEmptyArchive: true
@@ -226,7 +211,7 @@ pipeline {
 
                     def exitCode = bat(
                         returnStatus: true,
-                        script: "set PLAYWRIGHT_JSON_OUTPUT_NAME=test-results/rerun-results.json && npx playwright test"
+                        script: "set PLAYWRIGHT_JSON_OUTPUT_NAME=test-results/rerun-results.json && set PLAYWRIGHT_HTML_OUTPUT_DIR=reports/re-execution/playwright && npx playwright test ${grepFlag}"
                     )
 
                     env.RERUN_EXIT_CODE = exitCode.toString()
@@ -241,15 +226,7 @@ pipeline {
             post {
                 always {
                     powershell '''
-                        if (Test-Path 'reports/re-execution') { Remove-Item 'reports/re-execution' -Recurse -Force -ErrorAction SilentlyContinue }
-                        New-Item -ItemType Directory -Path 'reports/re-execution' -Force | Out-Null
-                        if (Test-Path 'playwright-report/index.html') {
-                            Copy-Item 'playwright-report/*' 'reports/re-execution' -Recurse -Force
-                        } else {
-                            @"
-<html><body><h1>Re-execution - Playwright Report</h1><p>No Playwright HTML report was generated for the re-execution run.</p></body></html>
-"@ | Set-Content 'reports/re-execution/index.html'
-                        }
+                        & './scripts/generate-jenkins-report.ps1' -OutputDir 'reports/re-execution' -Title 'Re-execution - Playwright Report' -JsonReportPath 'test-results/rerun-results.json' -ReportLink 'playwright/index.html'
                     '''
                     archiveArtifacts artifacts: 'reports/re-execution/**/*', allowEmptyArchive: true
                     publishHTML(target: [
