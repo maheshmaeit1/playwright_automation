@@ -132,17 +132,11 @@ pipeline {
             }
             post {
                 always {
-                    bat '''
-                        if exist allure-results/original-execution (
-                            call npm run allure:original
-                        )
-                    '''
                     powershell '''
                         & './scripts/generate-jenkins-report.ps1' -OutputDir 'published-reports/original-execution' -Title 'Original Execution - Playwright Report' -JsonReportPath 'test-results/results.json' -ReportLink '../../playwright-report/original-execution/index.html'
                     '''
                     archiveArtifacts artifacts: 'playwright-report/original-execution/**/*', allowEmptyArchive: true
                     archiveArtifacts artifacts: 'allure-results/original-execution/**/*', allowEmptyArchive: true
-                    archiveArtifacts artifacts: 'allure-report/original-execution/**/*', allowEmptyArchive: true
                     archiveArtifacts artifacts: 'published-reports/original-execution/**/*', allowEmptyArchive: true
                     publishHTML(target: [
                         allowMissing:          true,
@@ -151,14 +145,6 @@ pipeline {
                         reportDir:             'published-reports/original-execution',
                         reportFiles:           'index.html',
                         reportName:            'Original Execution - Playwright Report'
-                    ])
-                    publishHTML(target: [
-                        allowMissing:          true,
-                        alwaysLinkToLastBuild: true,
-                        keepAll:               true,
-                        reportDir:             'allure-report/original-execution',
-                        reportFiles:           'index.html',
-                        reportName:            'Original Execution - Allure Report'
                     ])
                 }
             }
@@ -251,17 +237,11 @@ pipeline {
             }
             post {
                 always {
-                    bat '''
-                        if exist allure-results/re-execution-after-fix (
-                            call npm run allure:rerun
-                        )
-                    '''
                     powershell '''
                         & './scripts/generate-jenkins-report.ps1' -OutputDir 'published-reports/re-execution' -Title 'Re-execution - Playwright Report' -JsonReportPath 'test-results/rerun-results.json' -ReportLink '../../playwright-report/re-execution-after-fix/index.html'
                     '''
                     archiveArtifacts artifacts: 'playwright-report/re-execution-after-fix/**/*', allowEmptyArchive: true
                     archiveArtifacts artifacts: 'allure-results/re-execution-after-fix/**/*', allowEmptyArchive: true
-                    archiveArtifacts artifacts: 'allure-report/re-execution-after-fix/**/*', allowEmptyArchive: true
                     archiveArtifacts artifacts: 'published-reports/re-execution/**/*', allowEmptyArchive: true
                     publishHTML(target: [
                         allowMissing:          true,
@@ -270,14 +250,6 @@ pipeline {
                         reportDir:             'published-reports/re-execution',
                         reportFiles:           'index.html',
                         reportName:            'Re-execution - Playwright Report'
-                    ])
-                    publishHTML(target: [
-                        allowMissing:          true,
-                        alwaysLinkToLastBuild: true,
-                        keepAll:               true,
-                        reportDir:             'allure-report/re-execution-after-fix',
-                        reportFiles:           'index.html',
-                        reportName:            'Re-execution - Allure Report'
                     ])
                 }
             }
@@ -314,8 +286,26 @@ pipeline {
         always {
             archiveArtifacts artifacts: 'test-results/**/*', allowEmptyArchive: true
             archiveArtifacts artifacts: 'playwright-report/**/*', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'allure-results/**/*', allowEmptyArchive: true
 
             script {
+                def allureResults = []
+                if (fileExists('allure-results/original-execution')) {
+                    allureResults << [path: 'allure-results/original-execution']
+                }
+                if (fileExists('allure-results/re-execution-after-fix')) {
+                    allureResults << [path: 'allure-results/re-execution-after-fix']
+                }
+                if (allureResults) {
+                    allure([
+                        includeProperties: false,
+                        jdk: '',
+                        properties: [],
+                        reportBuildPolicy: 'ALWAYS',
+                        results: allureResults
+                    ])
+                }
+
                 if (fileExists(env.HEALING_REPORT)) {
                     def healingReportText = readFile(file: env.HEALING_REPORT).trim()
                     if (healingReportText) {

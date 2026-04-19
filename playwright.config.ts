@@ -27,7 +27,7 @@ export default defineConfig({
     ['list'],
     ['html', { open: 'never', outputFolder: process.env.PLAYWRIGHT_HTML_OUTPUT_DIR || 'playwright-report' }],
     ['json', { outputFile: 'test-results/results.json' }],
-    ['allure-playwright', { outputFolder: process.env.ALLURE_RESULTS_DIR || 'allure-results' }]
+    ['allure-playwright', { resultsDir: process.env.ALLURE_RESULTS_DIR || 'allure-results' }]
   ],
   use: {
     headless: true,
