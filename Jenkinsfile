@@ -114,7 +114,7 @@ pipeline {
 
                     def exitCode = bat(
                         returnStatus: true,
-                        script: "set \"PLAYWRIGHT_HTML_OUTPUT_DIR=reports/original-execution/playwright\" && npx playwright test ${grepFlag}"
+                        script: "set \"PLAYWRIGHT_HTML_OUTPUT_DIR=playwright-report/original-execution\" && npx playwright test ${grepFlag}"
                     )
 
                     env.INITIAL_EXIT_CODE = exitCode.toString()
@@ -131,7 +131,7 @@ pipeline {
                     powershell '''
                         & './scripts/generate-jenkins-report.ps1' -OutputDir 'published-reports/original-execution' -Title 'Original Execution - Playwright Report' -JsonReportPath 'test-results/results.json'
                     '''
-                    archiveArtifacts artifacts: 'reports/original-execution/playwright/**/*', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'playwright-report/original-execution/**/*', allowEmptyArchive: true
                     archiveArtifacts artifacts: 'published-reports/original-execution/**/*', allowEmptyArchive: true
                     publishHTML(target: [
                         allowMissing:          true,
@@ -214,7 +214,7 @@ pipeline {
 
                     def exitCode = bat(
                         returnStatus: true,
-                        script: "set \"PLAYWRIGHT_HTML_OUTPUT_DIR=reports/re-execution/playwright\" && npx playwright test ${grepFlag}"
+                        script: "set \"PLAYWRIGHT_HTML_OUTPUT_DIR=playwright-report/re-execution-after-fix\" && npx playwright test ${grepFlag}"
                     )
 
                     if (fileExists('test-results/results.json')) {
@@ -235,7 +235,7 @@ pipeline {
                     powershell '''
                         & './scripts/generate-jenkins-report.ps1' -OutputDir 'published-reports/re-execution' -Title 'Re-execution - Playwright Report' -JsonReportPath 'test-results/rerun-results.json'
                     '''
-                    archiveArtifacts artifacts: 'reports/re-execution/playwright/**/*', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'playwright-report/re-execution-after-fix/**/*', allowEmptyArchive: true
                     archiveArtifacts artifacts: 'published-reports/re-execution/**/*', allowEmptyArchive: true
                     publishHTML(target: [
                         allowMissing:          true,
