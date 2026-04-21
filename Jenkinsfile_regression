@@ -97,6 +97,21 @@ pipeline {
                     reportFiles:           'index.html',
                     reportName:            'Original Execution - Playwright Report'
                 ])
+                script {
+                    def allureResults = []
+                    if (fileExists('allure-results/original-execution')) {
+                        allureResults << [path: 'allure-results/original-execution']
+                    }
+                    if (allureResults) {
+                        allure([
+                            includeProperties: false,
+                            jdk: '',
+                            properties: [],
+                            reportBuildPolicy: 'ALWAYS',
+                            results: allureResults
+                        ])
+                    }
+                }
             }
             post {
                 always {
