@@ -161,6 +161,15 @@ pipeline {
             }
             steps {
                 script {
+                    // Ensure branch exists and is checked out BEFORE healing (code changes)
+                    bat '''
+                        git rev-parse --verify pipeline_test >nul 2>nul
+                        if %ERRORLEVEL% NEQ 0 (
+                            git checkout -b pipeline_test
+                        ) else (
+                            git checkout pipeline_test
+                        )
+                    '''
                     def dryRun = params.DRY_RUN ? '--dry-run' : ''
 
                     def healExitCode = bat(

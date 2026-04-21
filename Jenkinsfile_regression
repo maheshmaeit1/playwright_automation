@@ -1,0 +1,75 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Playwright Test Pipeline (No Healing, No Commit)
+//
+// Stages:
+//   1. Setup  – install Node deps + Playwright browsers
+//   2. Test   – run Playwright and capture JSON report
+//   3. Reports – generate and archive Allure/Playwright reports
+// ─────────────────────────────────────────────────────────────────────────────
+
+pipeline {
+    agent any
+
+    environment {
+        PLAYWRIGHT_JSON_REPORT = 'test-results/results.json'
+        PATH = "${env.PATH}"
+        BASE_URL = "${env.BASE_URL ?: 'http://localhost:5173'}"
+    }
+
+    options {
+        timeout(time: 30, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '20'))
+        disableConcurrentBuilds()
+    }
+
+    stages {
+        // ── 1. Setup ─────────────────────────────────────────────────────────
+        stage('Setup') {
+            steps {
+                bat 'node --version && npm --version'
+                bat 'npm ci'
+                bat 'npx playwright install chromium'
+            }
+        }
+
+        // ── 2. Test ──────────────────────────────────────────────────────────
+        stage('Test') {
+            steps {
+                bat '''
+                    if exist reports rd /s /q reports
+                    if exist published-reports rd /s /q published-reports
+                    if exist playwright-report rd /s /q playwright-report
+                    if exist allure-results rd /s /q allure-results
+                    if exist allure-report rd /s /q allure-report
+                    if exist test-results rd /s /q test-results
+                    mkdir reports
+                    mkdir published-reports
+                    mkdir allure-results
+                    mkdir allure-report
+                    mkdir test-results
+                '''
+                bat 'set "PLAYWRIGHT_HTML_OUTPUT_DIR=playwright-report/original-execution" && set "ALLURE_RESULTS_DIR=allure-results/original-execution" && npx playwright test'
+            }
+        }
+
+        // ── 3. Reports ───────────────────────────────────────────────────────
+        stage('Reports') {
+            steps {
+                powershell '''
+                    & './scripts/generate-jenkins-report.ps1' -OutputDir 'published-reports/original-execution' -Title 'Original Execution - Playwright Report' -JsonReportPath 'test-results/results.json' -ReportLink '../../playwright-report/original-execution/index.html'
+                '''
+                archiveArtifacts artifacts: 'playwright-report/original-execution/**/*', allowEmptyArchive: true
+                archiveArtifacts artifacts: 'allure-results/original-execution/**/*', allowEmptyArchive: true
+                archiveArtifacts artifacts: 'published-reports/original-execution/**/*', allowEmptyArchive: true
+                publishHTML(target: [
+                    allowMissing:          true,
+                    alwaysLinkToLastBuild: true,
+                    keepAll:               true,
+                    reportDir:             'published-reports/original-execution',
+                    reportFiles:           'index.html',
+                    reportName:            'Original Execution - Playwright Report'
+                ])
+            }
+        }
+    }
+}
