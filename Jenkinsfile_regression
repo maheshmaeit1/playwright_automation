@@ -41,20 +41,22 @@ pipeline {
         // ── 2. Test ──────────────────────────────────────────────────────────
         stage('Test') {
             steps {
-                bat '''
-                    if exist reports rd /s /q reports
-                    if exist published-reports rd /s /q published-reports
-                    if exist playwright-report rd /s /q playwright-report
-                    if exist allure-results rd /s /q allure-results
-                    if exist allure-report rd /s /q allure-report
-                    if exist test-results rd /s /q test-results
-                    mkdir reports
-                    mkdir published-reports
-                    mkdir allure-results
-                    mkdir allure-report
-                    mkdir test-results
-                '''
-                bat 'set "PLAYWRIGHT_HTML_OUTPUT_DIR=playwright-report/original-execution" && set "ALLURE_RESULTS_DIR=allure-results/original-execution" && npx playwright test'
+                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                    bat '''
+                        if exist reports rd /s /q reports
+                        if exist published-reports rd /s /q published-reports
+                        if exist playwright-report rd /s /q playwright-report
+                        if exist allure-results rd /s /q allure-results
+                        if exist allure-report rd /s /q allure-report
+                        if exist test-results rd /s /q test-results
+                        mkdir reports
+                        mkdir published-reports
+                        mkdir allure-results
+                        mkdir allure-report
+                        mkdir test-results
+                    '''
+                    bat 'set "PLAYWRIGHT_HTML_OUTPUT_DIR=playwright-report/original-execution" && set "ALLURE_RESULTS_DIR=allure-results/original-execution" && npx playwright test'
+                }
             }
             post {
                 always {
@@ -66,7 +68,9 @@ pipeline {
         // ── 3. Allure Report ────────────────────────────────────────────────
         stage('Allure Report') {
             steps {
-                bat 'npx allure generate allure-results/original-execution --clean -o allure-report/original-execution'
+                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                    bat 'npx allure generate allure-results/original-execution --clean -o allure-report/original-execution'
+                }
             }
             post {
                 always {
