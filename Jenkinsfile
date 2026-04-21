@@ -258,20 +258,18 @@ pipeline {
         // ── 6. Commit healed files ───────────────────────────────────────────
         stage('Commit fixes') {
             when {
-                expression { false } // disabled
+                expression { true } // disabled
             }
             steps {
                 script {
                     bat """
-                        git config user.email "healer-bot@ci.local"
-                        git config user.name "Healer Bot"
                         git add --all
                         git diff --cached --quiet && echo "Nothing to commit." || git commit -m "fix: auto-heal failing Playwright tests [skip ci]"
                     """
 
                     def hasPush = bat(returnStatus: true, script: 'git remote | findstr origin')
                     if (hasPush == 0) {
-                        bat 'git push origin HEAD'
+                        bat 'git push origin pipeline_test'
                     } else {
                         echo 'No remote "origin" found — skipping push.'
                     }
