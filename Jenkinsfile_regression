@@ -31,6 +31,11 @@ pipeline {
                 bat 'npm i'
                 bat 'npx playwright install chromium'
             }
+            post {
+                always {
+                    echo 'Setup stage completed.'
+                }
+            }
         }
 
         // ── 2. Test ──────────────────────────────────────────────────────────
@@ -51,12 +56,22 @@ pipeline {
                 '''
                 bat 'set "PLAYWRIGHT_HTML_OUTPUT_DIR=playwright-report/original-execution" && set "ALLURE_RESULTS_DIR=allure-results/original-execution" && npx playwright test'
             }
+            post {
+                always {
+                    echo 'Test stage completed.'
+                }
+            }
         }
 
         // ── 3. Allure Report ────────────────────────────────────────────────
         stage('Allure Report') {
             steps {
                 bat 'npx allure generate allure-results/original-execution --clean -o allure-report/original-execution'
+            }
+            post {
+                always {
+                    echo 'Allure Report stage completed.'
+                }
             }
         }
 
@@ -76,6 +91,11 @@ pipeline {
                     reportFiles:           'index.html',
                     reportName:            'Original Execution - Playwright Report'
                 ])
+            }
+            post {
+                always {
+                    echo 'Archive stage completed.'
+                }
             }
         }
     }
