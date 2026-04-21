@@ -161,90 +161,6 @@ If you cannot determine a reliable fix, set confidence to "low" and leave fixed_
 """
 
 
-# ──────────────────────────────────────────────
-# Local fallback analyzer for common issues
-# ──────────────────────────────────────────────
-
-class LocalFailureAnalyzer:
-    """Analyzes common test failures locally without external API calls."""
-
-    @staticmethod
-    def detect_element_not_found(error_msg: str, stack: str) -> tuple[bool, str]:
-        """Detects if the issue is 'element not found' or similar locator problem."""
-        indicators = [
-            "element(s) not found",
-            "expected element not found",
-            "no element matches the locator",
-            "matching element was not found",
-        ]
-        error_lower = (error_msg or "").lower()
-        for indicator in indicators:
-            if indicator in error_lower:
-                return True, indicator
-        return False, ""
-
-    @staticmethod
-    def suggest_locator_alternatives(test_content: str, error_msg: str) -> list[str]:
-        """Suggests alternative locators based on the failing one."""
-        suggestions = []
-        
-        # Extract the failing locator from error message
-        locator_match = re.search(r"getBy\w+\([^)]*\)", error_msg)
-        if not locator_match:
-            return suggestions
-        
-        failing_locator = locator_match.group(0)
-        
-        # If it's a getByRole with name, suggest alternatives
-        if "getByRole" in failing_locator and "name:" in failing_locator:
-            suggestions.append(
-                "Try using getByText() instead of getByRole() for flexible text matching"
-            )
-            suggestions.append(
-                "Check if element structure changed - may need to use getByTestId() if available"
-            )
-        
-        # If it's any locator, suggest checking visibility
-        if "expect" in test_content and "toBeVisible" in error_msg:
-            suggestions.append(
-                "Add explicit wait with page.waitForSelector() before visibility check"
-            )
-        
-        return suggestions
-
-    @staticmethod
-    def attempt_simple_fix(failure: "TestFailure", test_content: str) -> Optional[dict]:
-        """Attempts to fix simple, common issues locally.
-        
-        NOTE: This is conservative - it does NOT blindly change locators.
-        Locator changes can mask real data/assertion issues.
-        """
-        
-        is_element_not_found, reason = LocalFailureAnalyzer.detect_element_not_found(
-            failure.error_message, failure.stack_trace
-        )
-        
-        if not is_element_not_found:
-            return None
-        
-        logger.info("  Local analyzer: Detected element not found - %s", reason)
-        logger.warning("  Local analyzer: Element not found errors require manual investigation")
-        logger.warning("    - Cause could be: wrong test data, incorrect assertion, or changed element structure")
-        logger.warning("    - Simply changing locators masks the real problem")
-        logger.warning("    - Requires human review to determine proper fix")
-        
-        # Do NOT auto-fix element-not-found by changing locators
-        # These indicate real issues that need investigation:
-        # 1. Product/test data mismatch
-        # 2. Changed UI structure
-        # 3. Element visibility/timing issues
-        # 4. Wrong assertion expectations
-        
-        # Instead of auto-fixing, return None to let Copilot handle it
-        # (which has better context for diagnosis)
-        return None
-
-
 def resolve_cli_command(cli_command: str) -> list[str]:
     raw_command = os.path.expandvars((cli_command or "copilot").strip())
     cmd = shlex.split(raw_command, posix=os.name != "nt") if raw_command else ["copilot"]
@@ -288,14 +204,12 @@ class PlaywrightTestHealer:
         model: str = "github-copilot",
         max_tokens: int = 8096,
         cli_command: str = "copilot",
-        copilot_timeout: int = 60,
     ) -> None:
         self.workspace = Path(workspace).resolve()
         self.dry_run = dry_run
         self.model = model
         self.max_tokens = max_tokens
         self.cli_command = cli_command
-        self.copilot_timeout = copilot_timeout
         self._results: list[HealingResult] = []
 
     # ── file helpers ──────────────────────────
@@ -366,7 +280,7 @@ class PlaywrightTestHealer:
             text=True,
             encoding="utf-8",
             errors="replace",
-            timeout=self.copilot_timeout,
+            timeout=180,
             check=False,
         )
 
@@ -440,42 +354,10 @@ class PlaywrightTestHealer:
             self._results.append(result)
             return result
 
-        # Try local analyzer first for common issues (faster, no external deps)
-        logger.info("  Attempting local analysis for common patterns...")
-        local_fix = LocalFailureAnalyzer.attempt_simple_fix(failure, test_src)
-        if local_fix and local_fix.get("confidence") != "low":
-            success = self._apply_fix(failure, local_fix.get("fixed_code", ""))
-            result = HealingResult(
-                test_title=failure.test_title,
-                file_path=failure.file_path,
-                success=success,
-                root_cause=local_fix.get("root_cause", ""),
-                fix_description=local_fix.get("fix_description", ""),
-                confidence=local_fix.get("confidence", "medium"),
-                requires_app_change=local_fix.get("requires_app_change", False),
-            )
-            self._results.append(result)
-            return result
-
-        # Fall back to Copilot CLI for complex cases
-        logger.info("  Local analysis inconclusive - escalating to Copilot CLI for deeper analysis...")
         prompt = self._build_prompt(failure, test_src)
 
         try:
             analysis = self._call_copilot(prompt)
-        except subprocess.TimeoutExpired:
-            logger.error("Copilot CLI timed out after %d seconds", self.copilot_timeout)
-            logger.warning("  This usually indicates: network latency, API delays, or service issues")
-            logger.warning("  Consider: increasing --copilot-timeout or running with --dry-run to analyze offline")
-            result = HealingResult(
-                test_title=failure.test_title,
-                file_path=failure.file_path,
-                success=False,
-                root_cause=f"Copilot CLI timeout after {self.copilot_timeout}s - possible network or service issue",
-                fix_description="Manual review recommended. Check: 1) Test data validity, 2) Element selector accuracy, 3) Expected vs actual values",
-            )
-            self._results.append(result)
-            return result
         except Exception as exc:
             logger.error("Copilot CLI error: %s", exc)
             result = HealingResult(
@@ -642,12 +524,6 @@ def parse_args() -> argparse.Namespace:
         default=os.environ.get("COPILOT_CLI_COMMAND", "copilot"),
         help="Copilot CLI command to use",
     )
-    p.add_argument(
-        "--copilot-timeout",
-        type=int,
-        default=60,
-        help="Timeout in seconds for Copilot CLI calls (default: 60s)",
-    )
     p.add_argument("--dry-run", action="store_true", help="Analyse only; do not write fixes")
     return p.parse_args()
 
@@ -666,7 +542,6 @@ def main() -> None:
         dry_run=args.dry_run,
         model=args.model,
         cli_command=args.copilot_command,
-        copilot_timeout=args.copilot_timeout,
     )
 
     healer.heal_report(args.report)
