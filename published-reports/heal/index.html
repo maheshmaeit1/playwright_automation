@@ -19,7 +19,7 @@
 </head>
 <body>
   <h1>AI Healer Report</h1>
-  <p>Generated: 2026-04-21T17:23:20.273626 | Dry-run: False</p>
+  <p>Generated: 2026-04-21T17:31:00.713612 | Dry-run: False</p>
   <div class="summary">
     <div class="card"><div class="num total">1</div>Total Failures</div>
     <div class="card"><div class="num healed">1</div>Healed</div>
@@ -32,8 +32,8 @@
                 <td style="color:#2ecc71;font-weight:bold">HEALED</td>
                 <td>Search results display - verify product information</td>
                 <td><code>ui/search-functionality.spec.ts</code></td>
-                <td>The failing assertion used `page.getByText('Electronics')`, which matched both the category filter button and the product's category badge, triggering Playwright strict mode.</td>
-                <td>Replaced the ambiguous text locator with a targeted locator for the product category badge so the test still verifies the category value without matching multiple elements.</td>
+                <td>The test used page.getByText('Electronics'), which matched both the category filter button and the product's category badge, triggering Playwright strict-mode ambiguity.</td>
+                <td>Replaced the ambiguous text locator with a scoped category badge locator so the assertion still verifies the Electronics label on the product card without matching the filter button.</td>
                 <td>high</td>
             </tr>
   </table>
