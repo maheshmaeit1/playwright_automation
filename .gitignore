@@ -8,3 +8,5 @@ healer.log
 healer/
 reports/
 published-reports/
+*.bak_*
+*.spec.bak_*.ts
