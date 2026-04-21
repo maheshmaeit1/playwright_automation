@@ -4,7 +4,8 @@
 // Stages:
 //   1. Setup  – install Node deps + Playwright browsers
 //   2. Test   – run Playwright and capture JSON report
-//   3. Reports – generate and archive Allure/Playwright reports
+//   3. Allure Report – generate Allure HTML report
+//   4. Archive – archive all reports
 // ─────────────────────────────────────────────────────────────────────────────
 
 pipeline {
@@ -50,30 +51,31 @@ pipeline {
                 '''
                 bat 'set "PLAYWRIGHT_HTML_OUTPUT_DIR=playwright-report/original-execution" && set "ALLURE_RESULTS_DIR=allure-results/original-execution" && npx playwright test'
             }
-            post {
-                always {
-                    powershell '''
-                        & './scripts/generate-jenkins-report.ps1' -OutputDir 'published-reports/original-execution' -Title 'Original Execution - Playwright Report' -JsonReportPath 'test-results/results.json' -ReportLink '../../playwright-report/original-execution/index.html'
-                    '''
-                    archiveArtifacts artifacts: 'playwright-report/original-execution/**/*', allowEmptyArchive: true
-                    archiveArtifacts artifacts: 'allure-results/original-execution/**/*', allowEmptyArchive: true
-                    archiveArtifacts artifacts: 'published-reports/original-execution/**/*', allowEmptyArchive: true
-                    publishHTML(target: [
-                        allowMissing:          true,
-                        alwaysLinkToLastBuild: true,
-                        keepAll:               true,
-                        reportDir:             'published-reports/original-execution',
-                        reportFiles:           'index.html',
-                        reportName:            'Original Execution - Playwright Report'
-                    ])
-                }
+        }
+
+        // ── 3. Allure Report ────────────────────────────────────────────────
+        stage('Allure Report') {
+            steps {
+                bat 'npx allure generate allure-results/original-execution --clean -o allure-report/original-execution'
             }
         }
 
-        // ── 3. Reports ───────────────────────────────────────────────────────
-        stage('Reports') {
+        // ── 4. Archive ──────────────────────────────────────────────────────
+        stage('Archive') {
             steps {
-                echo 'Reports are now always handled in the Test stage post block.'
+                archiveArtifacts artifacts: 'playwright-report/original-execution/**/*', allowEmptyArchive: true
+                archiveArtifacts artifacts: 'allure-results/original-execution/**/*', allowEmptyArchive: true
+                archiveArtifacts artifacts: 'allure-report/original-execution/**/*', allowEmptyArchive: true
+                archiveArtifacts artifacts: 'test-results/**/*', allowEmptyArchive: true
+                archiveArtifacts artifacts: 'published-reports/original-execution/**/*', allowEmptyArchive: true
+                publishHTML(target: [
+                    allowMissing:          true,
+                    alwaysLinkToLastBuild: true,
+                    keepAll:               true,
+                    reportDir:             'published-reports/original-execution',
+                    reportFiles:           'index.html',
+                    reportName:            'Original Execution - Playwright Report'
+                ])
             }
         }
     }
