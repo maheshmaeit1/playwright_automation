@@ -280,7 +280,7 @@ class PlaywrightTestHealer:
             text=True,
             encoding="utf-8",
             errors="replace",
-            timeout=180,
+            timeout=300,
             check=False,
         )
 
