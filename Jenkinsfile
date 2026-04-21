@@ -271,13 +271,28 @@ pipeline {
             }
             steps {
                 script {
-                    // Create a new unique branch for healed fixes
+                    // Create a new unique branch for healed fixes from main
                     def newBranch = "healed-fixes-${env.BUILD_NUMBER}"
                     
                     bat """
-                        git checkout -b ${newBranch}
-                        git add "*.ts"
+                        REM Create patch of only *.ts file changes (excluding backup files)
+                        git diff -- "*.ts" ":!*.bak_*" > healed-changes.patch
+                        
+                        REM Fetch main and create clean branch from it
+                        git fetch origin main
+                        git checkout -b ${newBranch} origin/main
+                        
+                        REM Apply only the *.ts file changes
+                        if exist healed-changes.patch (
+                            git apply healed-changes.patch
+                        )
+                        
+                        REM Add only *.ts files, excluding backup files
+                        git add "*.ts" ":!*.bak_*"
                         git diff --cached --quiet && echo "Nothing to commit." || git commit -m "fix: auto-heal failing Playwright tests [skip ci]"
+                        
+                        REM Clean up patch file
+                        if exist healed-changes.patch del healed-changes.patch
                     """
 
                     def hasPush = bat(returnStatus: true, script: 'git remote | findstr origin')
