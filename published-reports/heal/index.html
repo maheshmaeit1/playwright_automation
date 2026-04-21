@@ -19,7 +19,7 @@
 </head>
 <body>
   <h1>AI Healer Report</h1>
-  <p>Generated: 2026-04-21T16:55:54.455691 | Dry-run: False</p>
+  <p>Generated: 2026-04-21T17:23:20.273626 | Dry-run: False</p>
   <div class="summary">
     <div class="card"><div class="num total">1</div>Total Failures</div>
     <div class="card"><div class="num healed">1</div>Healed</div>
@@ -32,8 +32,8 @@
                 <td style="color:#2ecc71;font-weight:bold">HEALED</td>
                 <td>Search results display - verify product information</td>
                 <td><code>ui/search-functionality.spec.ts</code></td>
-                <td>The failure is caused by an ambiguous strict-mode text locator because 'Electronics' appears in both the category filter button and the product's category badge.</td>
-                <td>I replaced the generic `page.getByText('Electronics')` assertion with a scoped locator that specifically targets the product card's `.category-badge`, preserving the assertion while avoiding the duplicate match.</td>
+                <td>The failing assertion used `page.getByText('Electronics')`, which matched both the category filter button and the product's category badge, triggering Playwright strict mode.</td>
+                <td>Replaced the ambiguous text locator with a targeted locator for the product category badge so the test still verifies the category value without matching multiple elements.</td>
                 <td>high</td>
             </tr>
   </table>
