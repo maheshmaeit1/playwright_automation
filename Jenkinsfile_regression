@@ -69,7 +69,9 @@ pipeline {
         stage('Allure Report') {
             steps {
                 catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                    bat 'npx allure generate allure-results/original-execution --clean -o allure-report/original-execution'
+                    powershell '''
+                        & './scripts/generate-jenkins-report.ps1' -OutputDir 'published-reports/original-execution' -Title 'Original Execution - Playwright Report' -JsonReportPath 'test-results/results.json' -ReportLink '../../playwright-report/original-execution/index.html'
+                    '''
                 }
             }
             post {
