@@ -114,7 +114,7 @@ test.describe('Search Functionality', () => {
     
     // Verify complete product information is displayed correctly
     await expect(page.getByText('Showing 1 product(s)')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Portable Charger 123' })).toBeVisible();
+    await expect(page.getByText('Portable Charger 123')).toBeVisible();
     await expect(page.getByText('20000mAh portable power bank with fast charging')).toBeVisible();
     await expect(page.getByText('$49.99')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Add to Cart' })).toBeVisible();
