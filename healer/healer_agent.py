@@ -214,7 +214,11 @@ class LocalFailureAnalyzer:
 
     @staticmethod
     def attempt_simple_fix(failure: "TestFailure", test_content: str) -> Optional[dict]:
-        """Attempts to fix simple, common issues locally."""
+        """Attempts to fix simple, common issues locally.
+        
+        NOTE: This is conservative - it does NOT blindly change locators.
+        Locator changes can mask real data/assertion issues.
+        """
         
         is_element_not_found, reason = LocalFailureAnalyzer.detect_element_not_found(
             failure.error_message, failure.stack_trace
@@ -224,31 +228,20 @@ class LocalFailureAnalyzer:
             return None
         
         logger.info("  Local analyzer: Detected element not found - %s", reason)
+        logger.warning("  Local analyzer: Element not found errors require manual investigation")
+        logger.warning("    - Cause could be: wrong test data, incorrect assertion, or changed element structure")
+        logger.warning("    - Simply changing locators masks the real problem")
+        logger.warning("    - Requires human review to determine proper fix")
         
-        # Common fix patterns for "element not found"
-        # Pattern 1: getByRole with name - try getByText instead
-        if "getByRole" in failure.error_message and "name:" in failure.error_message:
-            name_match = re.search(r"name:\s*['\"]([^'\"]+)['\"]", failure.error_message)
-            if name_match:
-                product_name = name_match.group(1)
-                fixed_code = test_content.replace(
-                    f"getByRole('heading', {{ name: '{product_name}' }})",
-                    f"getByText('{product_name}')"
-                )
-                
-                if fixed_code != test_content:
-                    logger.info(
-                        "  Local analyzer: Suggesting locator change from getByRole to getByText"
-                    )
-                    return {
-                        "root_cause": f"Locator {reason} - element may not be a heading",
-                        "fix_description": f"Changed getByRole('heading', {{ name: '{product_name}' }}) to getByText('{product_name}') for more flexible matching",
-                        "fixed_code": fixed_code,
-                        "confidence": "medium",
-                        "requires_app_change": False,
-                    }
+        # Do NOT auto-fix element-not-found by changing locators
+        # These indicate real issues that need investigation:
+        # 1. Product/test data mismatch
+        # 2. Changed UI structure
+        # 3. Element visibility/timing issues
+        # 4. Wrong assertion expectations
         
-        logger.info("  Local analyzer: Cannot determine specific fix for this error pattern")
+        # Instead of auto-fixing, return None to let Copilot handle it
+        # (which has better context for diagnosis)
         return None
 
 
@@ -465,19 +458,21 @@ class PlaywrightTestHealer:
             return result
 
         # Fall back to Copilot CLI for complex cases
-        logger.info("  Local analysis inconclusive - trying Copilot CLI...")
+        logger.info("  Local analysis inconclusive - escalating to Copilot CLI for deeper analysis...")
         prompt = self._build_prompt(failure, test_src)
 
         try:
             analysis = self._call_copilot(prompt)
         except subprocess.TimeoutExpired:
             logger.error("Copilot CLI timed out after %d seconds", self.copilot_timeout)
+            logger.warning("  This usually indicates: network latency, API delays, or service issues")
+            logger.warning("  Consider: increasing --copilot-timeout or running with --dry-run to analyze offline")
             result = HealingResult(
                 test_title=failure.test_title,
                 file_path=failure.file_path,
                 success=False,
-                root_cause=f"Copilot CLI timeout after {self.copilot_timeout}s",
-                fix_description="Enable local analyzer for faster fixes on common issues",
+                root_cause=f"Copilot CLI timeout after {self.copilot_timeout}s - possible network or service issue",
+                fix_description="Manual review recommended. Check: 1) Test data validity, 2) Element selector accuracy, 3) Expected vs actual values",
             )
             self._results.append(result)
             return result
