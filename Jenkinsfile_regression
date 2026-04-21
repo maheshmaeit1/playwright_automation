@@ -27,7 +27,7 @@ pipeline {
         stage('Setup') {
             steps {
                 bat 'node --version && npm --version'
-                bat 'npm ci'
+                bat 'npm i'
                 bat 'npx playwright install chromium'
             }
         }
@@ -50,25 +50,30 @@ pipeline {
                 '''
                 bat 'set "PLAYWRIGHT_HTML_OUTPUT_DIR=playwright-report/original-execution" && set "ALLURE_RESULTS_DIR=allure-results/original-execution" && npx playwright test'
             }
+            post {
+                always {
+                    powershell '''
+                        & './scripts/generate-jenkins-report.ps1' -OutputDir 'published-reports/original-execution' -Title 'Original Execution - Playwright Report' -JsonReportPath 'test-results/results.json' -ReportLink '../../playwright-report/original-execution/index.html'
+                    '''
+                    archiveArtifacts artifacts: 'playwright-report/original-execution/**/*', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'allure-results/original-execution/**/*', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'published-reports/original-execution/**/*', allowEmptyArchive: true
+                    publishHTML(target: [
+                        allowMissing:          true,
+                        alwaysLinkToLastBuild: true,
+                        keepAll:               true,
+                        reportDir:             'published-reports/original-execution',
+                        reportFiles:           'index.html',
+                        reportName:            'Original Execution - Playwright Report'
+                    ])
+                }
+            }
         }
 
         // ── 3. Reports ───────────────────────────────────────────────────────
         stage('Reports') {
             steps {
-                powershell '''
-                    & './scripts/generate-jenkins-report.ps1' -OutputDir 'published-reports/original-execution' -Title 'Original Execution - Playwright Report' -JsonReportPath 'test-results/results.json' -ReportLink '../../playwright-report/original-execution/index.html'
-                '''
-                archiveArtifacts artifacts: 'playwright-report/original-execution/**/*', allowEmptyArchive: true
-                archiveArtifacts artifacts: 'allure-results/original-execution/**/*', allowEmptyArchive: true
-                archiveArtifacts artifacts: 'published-reports/original-execution/**/*', allowEmptyArchive: true
-                publishHTML(target: [
-                    allowMissing:          true,
-                    alwaysLinkToLastBuild: true,
-                    keepAll:               true,
-                    reportDir:             'published-reports/original-execution',
-                    reportFiles:           'index.html',
-                    reportName:            'Original Execution - Playwright Report'
-                ])
+                // ...existing code...
             }
         }
     }
