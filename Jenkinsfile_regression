@@ -73,7 +73,7 @@ pipeline {
         // ── 3. Reports ───────────────────────────────────────────────────────
         stage('Reports') {
             steps {
-                // ...existing code...
+                echo 'Reports are now always handled in the Test stage post block.'
             }
         }
     }
