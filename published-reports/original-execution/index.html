@@ -1,0 +1,30 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+  <meta charset='utf-8' />
+  <title>Original Execution - Playwright Report</title>
+</head>
+<body>
+  <h1>Original Execution - Playwright Report</h1>
+<p>This page is Jenkins-friendly and opens directly in the browser.</p>
+<p><a href='../../playwright-report/original-execution/index.html'>Open full Playwright report files</a></p>
+<h2>Summary</h2>
+<table border='1' cellpadding='6' cellspacing='0'>
+  <tr><th>Total</th><th>Passed</th><th>Failed</th><th>Skipped</th></tr>
+  <tr><td>8</td><td>7</td><td>1</td><td>0</td></tr>
+</table>
+<h2>Failed tests</h2>
+<table border='1' cellpadding='6' cellspacing='0'><tr><th>Test</th><th>Suite</th><th>Status</th><th>Error</th></tr><tr><td>Search results display - verify product information</td><td>ui\search-functionality.spec.ts &gt; Search Functionality</td><td>failed</td><td>Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+Locator: getByText(&#39;Electronics&#39;)
+Expected: visible
+Error: strict mode violation: getByText(&#39;Electronics&#39;) resolved to 2 elements:
+    1) &lt;button class=&quot;category-btn &quot;&gt;Electronics&lt;/button&gt; aka getByRole(&#39;button&#39;, { name: &#39;Electronics&#39; })
+    2) &lt;p class=&quot;category-badge&quot;&gt;Electronics&lt;/p&gt; aka getByRole(&#39;paragraph&#39;).filter({ hasText: &#39;Electronics&#39; })
+
+Call log:
+[2m  - Expect &quot;toBeVisible&quot; with timeout 10000ms[22m
+[2m  - waiting for getByText(&#39;Electronics&#39;)[22m
+</td></tr></table>
+</body>
+</html>

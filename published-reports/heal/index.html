@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Healing Report</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; background: #f9f9f9; }
+    h1 { color: #333; }
+    .summary { display:flex; gap:32px; margin-bottom:24px; }
+    .card { background:#fff; border-radius:8px; padding:16px 24px; box-shadow:0 1px 4px rgba(0,0,0,.1); text-align:center; }
+    .card .num { font-size:2em; font-weight:bold; }
+    .total { color:#3498db; } .healed { color:#2ecc71; } .unhealed { color:#e74c3c; }
+    table { border-collapse:collapse; width:100%; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.1); border-radius:8px; overflow:hidden; }
+    th { background:#3498db; color:#fff; padding:10px 14px; text-align:left; }
+    td { padding:10px 14px; border-bottom:1px solid #eee; vertical-align:top; }
+    tr:last-child td { border-bottom:none; }
+    code { background:#eee; padding:2px 4px; border-radius:3px; font-size:.9em; }
+  </style>
+</head>
+<body>
+  <h1>AI Healer Report</h1>
+  <p>Generated: 2026-04-21T16:44:42.692634 | Dry-run: False</p>
+  <div class="summary">
+    <div class="card"><div class="num total">1</div>Total Failures</div>
+    <div class="card"><div class="num healed">1</div>Healed</div>
+    <div class="card"><div class="num unhealed">0</div>Unhealed</div>
+  </div>
+  <table>
+    <tr><th>Status</th><th>Test</th><th>File</th><th>Root Cause</th><th>Fix Applied</th><th>Confidence</th></tr>
+    
+            <tr>
+                <td style="color:#2ecc71;font-weight:bold">HEALED</td>
+                <td>Search results display - verify product information</td>
+                <td><code>ui/search-functionality.spec.ts</code></td>
+                <td>The test uses an ambiguous text locator for 'Electronics', which matches both the category filter button and the product's category badge and triggers Playwright strict mode.</td>
+                <td>Replaced the ambiguous text assertion with a targeted locator for the product category badge so the test still verifies the category value without matching the filter button.</td>
+                <td>high</td>
+            </tr>
+  </table>
+</body>
+</html>
