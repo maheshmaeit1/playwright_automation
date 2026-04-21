@@ -6,6 +6,7 @@
   "scripts": {
     "bdd:generate": "bddgen test",
     "test": "playwright test",
+    "test:report": "playwright test",
     "test:api": "playwright test --project=api",
     "test:api:payment": "playwright test tests/api/payment.api.spec.ts --project=api",
     "test:bdd": "npm run bdd:generate && playwright test --project=bdd",
@@ -16,7 +17,9 @@
     "test:visual:update": "playwright test --project=visual --update-snapshots",
     "codegen": "playwright codegen",
     "pw:install": "playwright install",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "allure:original": "allure generate allure-results/original-execution --clean -o allure-report/original-execution",
+    "allure:rerun": "allure generate allure-results/re-execution-after-fix --clean -o allure-report/re-execution-after-fix"
   },
   "keywords": [],
   "author": "",
@@ -26,6 +29,7 @@
     "@playwright/test": "^1.58.2",
     "@types/node": "^25.5.0",
     "allure": "3.3.1",
+    "allure-playwright": "^3.7.1",
     "playwright-bdd": "^8.5.0",
     "typescript": "^6.0.2"
   }

@@ -20,7 +20,7 @@ Current automation scope validates product search behavior.
 - Reporter: `html`
 - Trace: `on-first-retry`
 - CI behavior:
-  - retries: `2`
+  - retries: `0`
   - workers: `1`
 
 ## Current Framework Structure (POM)
@@ -74,3 +74,81 @@ When adding more tests, keep this pattern:
 2. Keep assertions in page methods only when they represent page state contracts
 3. Keep test data explicit in spec files unless reused, then move to constants/fixtures
 4. Reuse `BasePage` for shared navigation/waits
+
+---
+
+## AI Test Healer Agent
+
+### Location
+```
+healer/
+└── healer_agent.py       # Python agent (entry point)
+└── requirements.txt      # No extra package needed; healer uses Copilot CLI
+Jenkinsfile               # Jenkins CI/CD pipeline (project root)
+```
+
+### What it does
+A Python agent that plugs into the Jenkins pipeline. When Playwright tests fail it:
+1. Parses the Playwright JSON failure report (`test-results/results.json`)
+2. Reads the failing test file and any imported page objects
+3. Calls the GitHub Copilot CLI with the error, stack trace, and source code
+4. Receives a root-cause diagnosis + corrected file content
+5. Backs up the original file and writes the fix in place
+6. Jenkins then re-runs the suite to verify the fix and commits it
+
+### Key classes
+| Class | File | Responsibility |
+|---|---|---|
+| `PlaywrightReportParser` | `healer_agent.py` | Walks Playwright JSON report tree → `TestFailure` list |
+| `PlaywrightTestHealer` | `healer_agent.py` | Orchestrates read → prompt → call Copilot CLI → patch |
+| `TestFailure` | `healer_agent.py` | Dataclass: suite, title, file, error, stack trace |
+| `HealingResult` | `healer_agent.py` | Dataclass: outcome, root cause, confidence, fix description |
+| `HealingReport` | `healer_agent.py` | Dataclass serialised to `healing_report.json` |
+
+### Copilot prompt strategy
+- **System prompt**: roles the model as a Playwright/TypeScript expert with strict rules (never remove assertions, prefer semantic locators, fix test code only)
+- **User prompt**: injects test title, error message, stack trace, full test file source, and any imported page object sources
+- **Response contract**: Copilot must return a single JSON object with `root_cause`, `fix_description`, `fixed_code`, `confidence` (`high|medium|low`), and `requires_app_change`
+- Fixes with `confidence=low` or `requires_app_change=true` are skipped — the healer logs them as unhealed
+
+### Reporter change
+`playwright.config.ts` was updated to emit a JSON report when `CI=true`:
+```ts
+reporter: [
+  ['list'],
+  ['html', { open: 'never' }],
+  ...(process.env.CI ? [['json', { outputFile: 'test-results/results.json' }]] : [])
+]
+```
+
+### Healer CLI
+```bash
+copilot --version
+
+python3 healer/healer_agent.py \
+  --report    test-results/results.json \
+  --workspace . \
+  --output    test-results/healing_report.json \
+  [--dry-run] \
+  [--model    github-copilot] \
+  [--copilot-command "copilot"]
+```
+
+Exit codes: `0` = all healed, `1` = some unhealed, `2` = startup error.
+
+### Jenkins pipeline stages
+| Stage | Trigger condition |
+|---|---|
+| Checkout | always |
+| Setup (Node + Python) | always |
+| Test | always |
+| Heal | test exit code ≠ 0 AND `SKIP_HEALING=false` |
+| Re-run after healing | heal exit code = 0 AND `DRY_RUN=false` |
+| Commit fixes | re-run exit code = 0 AND `DRY_RUN=false` |
+
+Jenkins requirement: the GitHub Copilot CLI must be installed and signed in on the agent.
+
+### Dependency
+```text
+No extra Python SDK is required; the healer shells out to the Copilot CLI.
+```

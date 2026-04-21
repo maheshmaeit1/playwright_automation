@@ -1,0 +1,2 @@
+# No extra Python packages are required.
+# This healer uses the GitHub Copilot CLI available on PATH.

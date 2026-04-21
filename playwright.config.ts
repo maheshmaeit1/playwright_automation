@@ -12,9 +12,10 @@ export default defineConfig({
   testIgnore: ['**/*-snapshots/**'],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  retries: 0,
   workers: process.env.CI ? 1 : undefined,
   timeout: 30_000,
+  outputDir: 'test-results/artifacts',
   expect: {
     timeout: 10_000,
     toHaveScreenshot: {
@@ -22,7 +23,12 @@ export default defineConfig({
       caret: 'hide'
     }
   },
-  reporter: [['list'], ['html', { open: 'never' }]],
+  reporter: [
+    ['list'],
+    ['html', { open: 'never', outputFolder: process.env.PLAYWRIGHT_HTML_OUTPUT_DIR || 'playwright-report' }],
+    ['json', { outputFile: 'test-results/results.json' }],
+    ['allure-playwright', { resultsDir: process.env.ALLURE_RESULTS_DIR || 'allure-results' }]
+  ],
   use: {
     headless: true,
     actionTimeout: 10_000,
