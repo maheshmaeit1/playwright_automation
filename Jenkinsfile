@@ -276,7 +276,7 @@ pipeline {
                     
                     bat """
                         git checkout -b ${newBranch}
-                        git add --all
+                        git add "*.ts"
                         git diff --cached --quiet && echo "Nothing to commit." || git commit -m "fix: auto-heal failing Playwright tests [skip ci]"
                     """
 
