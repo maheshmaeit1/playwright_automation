@@ -7,14 +7,15 @@
 //   3. Test   – run Playwright and capture JSON report
 //   4. Heal   – invoke Python healer agent directly (playwright-test-healer)
 //              which runs/debugs/fixes/verifies via MCP tools
-//   5. Commit – push healed test files to a dedicated branch
+//   5. Re-run – verify fixes by re-running tests after healing
+//   6. Commit – push healed test files to a dedicated branch
 //
 // Jenkins agent requirement:
 //   GitHub Copilot CLI must be installed and already signed in on the agent.
 //
 // Pipeline parameters (set in Jenkins UI or trigger payload):
 //   DRY_RUN      – analyse failures but do NOT write fixes (default: false)
-//   SKIP_HEALING – bypass the Heal stage entirely            (default: false)
+//   SKIP_HEALING – bypass the Heal + Re-run stages entirely  (default: false)
 //   TEST_GREP    – optional grep filter, e.g. "search"       (default: "")
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -30,7 +31,7 @@ pipeline {
         booleanParam(
             name: 'SKIP_HEALING',
             defaultValue: false,
-            description: 'Skip the Heal stage (useful for baseline runs)'
+            description: 'Skip the Heal and Re-run stages (useful for baseline runs)'
         )
         string(
             name: 'TEST_GREP',
@@ -46,6 +47,7 @@ pipeline {
         HEALER_SCRIPT          = 'healer/healer_agent.py'
         HEALER_LOG             = 'healer.log'
         HEAL_EXIT_CODE         = '0'
+        RERUN_EXIT_CODE        = '0'
         COPILOT_TIMEOUT        = '300'
         PATH                   = "${env.PATH};C:/Users/mahes/AppData/Roaming/Code/User/globalStorage/github.copilot-chat/copilotCli"
 
@@ -211,7 +213,61 @@ pipeline {
             }
         }
 
-        // ── 5. Commit healed files ───────────────────────────────────────────
+        // ── 5. Re-run after healing ──────────────────────────────────────────
+        stage('Re-run after healing') {
+            when {
+                allOf {
+                    expression { env.INITIAL_EXIT_CODE != '0' }
+                    expression { !params.SKIP_HEALING }
+                    expression { !params.DRY_RUN }
+                    expression { env.HEAL_EXIT_CODE == '0' }
+                }
+            }
+            steps {
+                script {
+                    def grepFlag = params.TEST_GREP
+                        ? "--grep \"${params.TEST_GREP}\""
+                        : ''
+
+                    def exitCode = bat(
+                        returnStatus: true,
+                        script: "set \"PLAYWRIGHT_HTML_OUTPUT_DIR=playwright-report/re-execution-after-fix\" && set \"ALLURE_RESULTS_DIR=allure-results/re-execution-after-fix\" && npx playwright test ${grepFlag}"
+                    )
+
+                    if (fileExists('test-results/results.json')) {
+                        powershell "Copy-Item 'test-results/results.json' 'test-results/rerun-results.json' -Force"
+                    }
+
+                    env.RERUN_EXIT_CODE = exitCode.toString()
+
+                    if (exitCode == 0) {
+                        echo 'Re-run passed — healer successfully fixed all tests.'
+                    } else {
+                        echo "Re-run still has failures (exit ${exitCode}). Manual review required."
+                    }
+                }
+            }
+            post {
+                always {
+                    powershell '''
+                        & './scripts/generate-jenkins-report.ps1' -OutputDir 'published-reports/re-execution' -Title 'Re-execution - Playwright Report' -JsonReportPath 'test-results/rerun-results.json' -ReportLink '../../playwright-report/re-execution-after-fix/index.html'
+                    '''
+                    archiveArtifacts artifacts: 'playwright-report/re-execution-after-fix/**/*', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'allure-results/re-execution-after-fix/**/*', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'published-reports/re-execution/**/*', allowEmptyArchive: true
+                    publishHTML(target: [
+                        allowMissing:          true,
+                        alwaysLinkToLastBuild: true,
+                        keepAll:               true,
+                        reportDir:             'published-reports/re-execution',
+                        reportFiles:           'index.html',
+                        reportName:            'Re-execution - Playwright Report'
+                    ])
+                }
+            }
+        }
+
+        // ── 6. Commit healed files ───────────────────────────────────────────
         stage('Commit fixes') {
             when {
                 allOf {
@@ -219,6 +275,7 @@ pipeline {
                     expression { !params.SKIP_HEALING }
                     expression { !params.DRY_RUN }
                     expression { env.HEAL_EXIT_CODE == '0' }
+                    expression { env.RERUN_EXIT_CODE == '0' }
                 }
             }
             steps {
@@ -268,6 +325,9 @@ pipeline {
                 if (fileExists('allure-results/original-execution')) {
                     allureResults << [path: 'allure-results/original-execution']
                 }
+                if (fileExists('allure-results/re-execution-after-fix')) {
+                    allureResults << [path: 'allure-results/re-execution-after-fix']
+                }
                 if (allureResults) {
                     allure([
                         includeProperties: false,
@@ -306,8 +366,13 @@ pipeline {
                     error 'Tests failed and SKIP_HEALING=true — no healing attempted.'
                 }
 
+                if (env.INITIAL_EXIT_CODE != '0' && !params.SKIP_HEALING && !params.DRY_RUN && env.HEAL_EXIT_CODE == '0' && env.RERUN_EXIT_CODE != '0') {
+                    currentBuild.result = 'FAILURE'
+                    error 'Tests still failing after healing re-execution — manual fix required.'
+                }
+
                 // If tests initially failed but healer fully fixed them, keep final build green.
-                if (healedAllFailures) {
+                if (healedAllFailures && env.RERUN_EXIT_CODE == '0') {
                     currentBuild.result = 'SUCCESS'
                 }
             }
