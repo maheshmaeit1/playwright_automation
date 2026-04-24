@@ -45,6 +45,7 @@ pipeline {
         HEALING_REPORT         = 'test-results/healing_report.json'
         HEALER_SCRIPT          = 'healer/healer_agent.py'
         HEALER_LOG             = 'healer.log'
+        HEAL_EXIT_CODE         = '0'
         COPILOT_TIMEOUT        = '300'
         PATH                   = "${env.PATH};C:/Users/mahes/AppData/Roaming/Code/User/globalStorage/github.copilot-chat/copilotCli"
 
@@ -210,16 +211,6 @@ pipeline {
             }
         }
 
-        // ── 5. Commit healed files ───────────────────────────────────────────
-        stage('Commit fixes') {
-            when {
-                expression { false }
-            }
-            steps {
-                echo 'Auto-commit is disabled. Healed file changes are kept only in the workspace and archived reports.'
-            }
-        }
-
     } // end stages
 
     // ── Post-pipeline ─────────────────────────────────────────────────────────
@@ -270,6 +261,11 @@ pipeline {
                 if (env.INITIAL_EXIT_CODE != '0' && params.SKIP_HEALING) {
                     currentBuild.result = 'FAILURE'
                     error 'Tests failed and SKIP_HEALING=true — no healing attempted.'
+                }
+
+                // If tests initially failed but healer fully fixed them, keep final build green.
+                if (env.INITIAL_EXIT_CODE != '0' && env.HEAL_EXIT_CODE == '0' && !params.DRY_RUN) {
+                    currentBuild.result = 'SUCCESS'
                 }
             }
         }
