@@ -268,7 +268,7 @@ pipeline {
                 if (fileExists('allure-results/original-execution')) {
                     allureResults << [path: 'allure-results/original-execution']
                 }
-                if (allureResults && !healedAllFailures) {
+                if (allureResults) {
                     allure([
                         includeProperties: false,
                         jdk: '',
@@ -276,8 +276,6 @@ pipeline {
                         reportBuildPolicy: 'ALWAYS',
                         results: allureResults
                     ])
-                } else if (allureResults && healedAllFailures) {
-                    echo 'Skipping Allure publisher to keep build SUCCESS after successful healing of initial failures.'
                 }
 
                 if (fileExists(env.HEALING_REPORT)) {
