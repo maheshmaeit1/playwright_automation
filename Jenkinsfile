@@ -7,7 +7,7 @@
 //   3. Test   – run Playwright and capture JSON report
 //   4. Heal   – invoke Python healer agent directly (playwright-test-healer)
 //              which runs/debugs/fixes/verifies via MCP tools
-//   5. Commit – disabled; healed files are archived only and never pushed
+//   5. Commit – push healed test files to a dedicated branch
 //
 // Jenkins agent requirement:
 //   GitHub Copilot CLI must be installed and already signed in on the agent.
@@ -207,6 +207,47 @@ pipeline {
                         reportFiles:           'index.html',
                         reportName:            'Test Heal Report'
                     ])
+                }
+            }
+        }
+
+        // ── 5. Commit healed files ───────────────────────────────────────────
+        stage('Commit fixes') {
+            when {
+                allOf {
+                    expression { env.INITIAL_EXIT_CODE != '0' }
+                    expression { !params.SKIP_HEALING }
+                    expression { !params.DRY_RUN }
+                    expression { env.HEAL_EXIT_CODE == '0' }
+                }
+            }
+            steps {
+                script {
+                    def newBranch = "healed-fixes-${env.BUILD_NUMBER}"
+
+                    def hasChanges = bat(
+                        returnStatus: true,
+                        script: 'git status --porcelain -- "*.ts" ":!*.bak_*" | findstr .'
+                    )
+
+                    if (hasChanges != 0) {
+                        echo 'No healed test file changes to commit.'
+                        return
+                    }
+
+                    bat """
+                        git checkout -b ${newBranch}
+                        git add "*.ts" ":!*.bak_*"
+                        git diff --cached --quiet && echo "Nothing to commit." || git commit -m "fix: auto-heal failing Playwright tests [skip ci]"
+                    """
+
+                    def hasPush = bat(returnStatus: true, script: 'git remote | findstr origin')
+                    if (hasPush == 0) {
+                        bat "git push origin ${newBranch}"
+                        echo "Healed changes pushed to branch: ${newBranch}"
+                    } else {
+                        echo 'No remote "origin" found — skipping push.'
+                    }
                 }
             }
         }
