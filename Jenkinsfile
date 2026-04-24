@@ -262,11 +262,13 @@ pipeline {
             archiveArtifacts artifacts: 'allure-results/**/*', allowEmptyArchive: true
 
             script {
+                def healedAllFailures = (env.INITIAL_EXIT_CODE != '0' && env.HEAL_EXIT_CODE == '0' && !params.DRY_RUN)
+
                 def allureResults = []
                 if (fileExists('allure-results/original-execution')) {
                     allureResults << [path: 'allure-results/original-execution']
                 }
-                if (allureResults) {
+                if (allureResults && !healedAllFailures) {
                     allure([
                         includeProperties: false,
                         jdk: '',
@@ -274,6 +276,8 @@ pipeline {
                         reportBuildPolicy: 'ALWAYS',
                         results: allureResults
                     ])
+                } else if (allureResults && healedAllFailures) {
+                    echo 'Skipping Allure publisher to keep build SUCCESS after successful healing of initial failures.'
                 }
 
                 if (fileExists(env.HEALING_REPORT)) {
@@ -305,7 +309,7 @@ pipeline {
                 }
 
                 // If tests initially failed but healer fully fixed them, keep final build green.
-                if (env.INITIAL_EXIT_CODE != '0' && env.HEAL_EXIT_CODE == '0' && !params.DRY_RUN) {
+                if (healedAllFailures) {
                     currentBuild.result = 'SUCCESS'
                 }
             }
