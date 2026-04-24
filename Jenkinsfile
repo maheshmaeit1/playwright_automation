@@ -7,7 +7,7 @@
 //   3. Test   – run Playwright and capture JSON report
 //   4. Heal   – invoke Python healer agent directly (playwright-test-healer)
 //              which runs/debugs/fixes/verifies via MCP tools
-//   5. Commit – push healed test files back to the branch
+//   5. Commit – disabled; healed files are archived only and never pushed
 //
 // Jenkins agent requirement:
 //   GitHub Copilot CLI must be installed and already signed in on the agent.
@@ -45,6 +45,7 @@ pipeline {
         HEALING_REPORT         = 'test-results/healing_report.json'
         HEALER_SCRIPT          = 'healer/healer_agent.py'
         HEALER_LOG             = 'healer.log'
+        COPILOT_TIMEOUT        = '300'
         PATH                   = "${env.PATH};C:/Users/mahes/AppData/Roaming/Code/User/globalStorage/github.copilot-chat/copilotCli"
 
         // Application URL — override per environment if needed
@@ -173,7 +174,7 @@ pipeline {
                     def dryRun  = params.DRY_RUN ? '--dry-run' : ''
                     def healExitCode = bat(
                         returnStatus: true,
-                        script: "set \"PYTHONIOENCODING=utf-8\" && python ${env.HEALER_SCRIPT} --report ${env.PLAYWRIGHT_JSON_REPORT} --workspace . --output ${env.HEALING_REPORT} ${dryRun}"
+                        script: "set \"PYTHONIOENCODING=utf-8\" && python ${env.HEALER_SCRIPT} --report ${env.PLAYWRIGHT_JSON_REPORT} --workspace . --output ${env.HEALING_REPORT} --copilot-timeout ${env.COPILOT_TIMEOUT} ${dryRun}"
                     )
 
                     env.HEAL_EXIT_CODE = healExitCode.toString()
@@ -212,42 +213,10 @@ pipeline {
         // ── 5. Commit healed files ───────────────────────────────────────────
         stage('Commit fixes') {
             when {
-                expression { true } // disabled
+                expression { false }
             }
             steps {
-                script {
-                    // Create a new unique branch for healed fixes from main
-                    def newBranch = "healed-fixes-${env.BUILD_NUMBER}"
-                    
-                    bat """
-                        REM Create patch of only *.ts file changes (excluding backup files)
-                        git diff -- "*.ts" ":!*.bak_*" > healed-changes.patch
-                        
-                        REM Fetch main and create clean branch from it
-                        git fetch origin main
-                        git checkout -b ${newBranch} origin/main
-                        
-                        REM Apply only the *.ts file changes
-                        if exist healed-changes.patch (
-                            git apply healed-changes.patch
-                        )
-                        
-                        REM Add only *.ts files, excluding backup files
-                        git add "*.ts" ":!*.bak_*"
-                        git diff --cached --quiet && echo "Nothing to commit." || git commit -m "fix: auto-heal failing Playwright tests [skip ci]"
-                        
-                        REM Clean up patch file
-                        if exist healed-changes.patch del healed-changes.patch
-                    """
-
-                    def hasPush = bat(returnStatus: true, script: 'git remote | findstr origin')
-                    if (hasPush == 0) {
-                        bat "git push origin ${newBranch}"
-                        echo "Changes pushed to new branch: ${newBranch}"
-                    } else {
-                        echo 'No remote "origin" found — skipping push.'
-                    }
-                }
+                echo 'Auto-commit is disabled. Healed file changes are kept only in the workspace and archived reports.'
             }
         }
 

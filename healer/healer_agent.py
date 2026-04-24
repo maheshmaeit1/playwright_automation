@@ -38,12 +38,14 @@ logger = logging.getLogger(__name__)
 
 class PlaywrightTestHealer:
     def __init__(self, workspace: str, dry_run: bool = False, model: str = "github-copilot",
-                 max_tokens: int = 8096, cli_command: str = "copilot") -> None:
+                 max_tokens: int = 8096, cli_command: str = "copilot",
+                 copilot_timeout: int = 300) -> None:
         self.workspace = Path(workspace).resolve()
         self.dry_run = dry_run
         self.model = model
         self.max_tokens = max_tokens
         self.cli_command = cli_command
+        self.copilot_timeout = copilot_timeout
         self._results: list[HealingResult] = []
 
     # ── file helpers ──────────────────────────
@@ -123,7 +125,13 @@ class PlaywrightTestHealer:
         prompt = build_agent_prompt(failure)
 
         try:
-            output = call_agent("playwright-test-healer", prompt, self.cli_command, str(self.workspace))
+            output = call_agent(
+                "playwright-test-healer",
+                prompt,
+                self.cli_command,
+                str(self.workspace),
+                timeout_seconds=self.copilot_timeout,
+            )
         except Exception as exc:
             logger.error("Agent invocation error: %s", exc)
             result = HealingResult(test_title=failure.test_title, file_path=failure.file_path,
@@ -168,7 +176,14 @@ class PlaywrightTestHealer:
         prompt = build_prompt(failure, test_src, self._page_objects(test_src), self.model)
 
         try:
-            analysis = call_copilot(prompt, self.model, self.max_tokens, self.cli_command, str(self.workspace))
+            analysis = call_copilot(
+                prompt,
+                self.model,
+                self.max_tokens,
+                self.cli_command,
+                str(self.workspace),
+                timeout_seconds=self.copilot_timeout,
+            )
         except Exception as exc:
             logger.error("Copilot CLI error: %s", exc)
             result = HealingResult(test_title=failure.test_title, file_path=failure.file_path,
@@ -290,6 +305,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--model",           default="github-copilot",      help="Copilot model hint")
     p.add_argument("--copilot-command", default=os.environ.get("COPILOT_CLI_COMMAND", "copilot"),
                    help="Copilot CLI command to use")
+    p.add_argument("--copilot-timeout", type=int, default=300, metavar="SECONDS",
+                   help="How long to wait for Copilot CLI/agent responses before timing out (default: 300)")
     p.add_argument("--dry-run",         action="store_true", help="Analyse only; do not write fixes")
     p.add_argument("--retry",           type=int, default=0, metavar="N",
                    help="After healing, run the test and re-heal up to N times if still failing (default: 0)")
@@ -313,6 +330,7 @@ def main() -> None:
         dry_run=args.dry_run,
         model=args.model,
         cli_command=args.copilot_command,
+        copilot_timeout=args.copilot_timeout,
     )
 
     use_agent = not args.no_agent
